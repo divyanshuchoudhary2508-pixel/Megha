@@ -37,8 +37,8 @@ def generate_curriculum(level: int):
 def save_curriculum(data, level):
     # Data ko /data/ folder mein save karenge (jo gitignored hai)
     # Taki ye heavy text files GitHub par upload na hon
-    os.makedirs("../data", exist_ok=True)
-    file_path = f"../data/level_{level}_curriculum.json"
+    os.makedirs("data", exist_ok=True)
+    file_path = f"data/level_{level}_curriculum.json"
     with open(file_path, "w", encoding="utf-8") as f:
         json.dump(data, f, indent=4)
     print(f"Curriculum saved to {file_path} successfully!")
