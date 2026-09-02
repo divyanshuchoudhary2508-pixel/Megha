@@ -28,7 +28,7 @@ def generate_curriculum(level: int):
             {"text": "She types on the keyboard."},
             {"text": "Data is stored in memory."},
             {"text": "He clicks the mouse."}
-        ]
+        ] * 100 # Multiply to simulate enough data for batches
     else:
         simulated_response = [{"text": f"Dummy data for level {level}."}]
         
