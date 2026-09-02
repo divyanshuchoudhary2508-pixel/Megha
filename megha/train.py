@@ -2,37 +2,62 @@ import torch
 import torch.optim as optim
 from .model import MeghaModel
 from .config import MeghaConfig
+from .dataset import get_dataloader
 import time
+import os
 
-def run_dummy_test():
-    print("Running Local CPU Dummy Test...")
+def train_level(level: int):
+    print(f"Starting Training for Level {level}...")
     config = MeghaConfig()
-    model = MeghaModel(config)
     
-    # Calculate parameters
+    # Kaggle par jab GPU hoga toh yahan automatically 'cuda' select ho jayega
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    print(f"Using device: {device}")
+    
+    model = MeghaModel(config).to(device)
     num_params = sum(p.numel() for p in model.parameters())
     print(f"Model Parameters: {num_params / 1e6:.2f} M")
     
-    # Dummy data: Batch of 4, sequence length of 32
-    # Input tokens (idx) and shifted targets
-    dummy_input = torch.randint(0, config.vocab_size, (config.batch_size, 32))
-    dummy_targets = torch.randint(0, config.vocab_size, (config.batch_size, 32))
+    data_path = f"data/level_{level}_curriculum.json"
+    tokenizer_path = "data/tokenizer.json"
     
+    try:
+        dataloader, tokenizer = get_dataloader(data_path, tokenizer_path, config)
+    except FileNotFoundError as e:
+        print(e)
+        return
+        
+    print(f"Dataset loaded. Total batches per epoch: {len(dataloader)}")
+    if len(dataloader) == 0:
+        print("Data is too small for the batch size! Try generating more sentences in data_gen.py")
+        return
+        
     optimizer = optim.AdamW(model.parameters(), lr=config.learning_rate)
     
-    print("\nStarting Training Loop Test...")
-    for step in range(10):
-        t0 = time.time()
+    model.train()
+    for epoch in range(config.epochs):
+        print(f"\n--- Epoch {epoch+1}/{config.epochs} ---")
         
-        optimizer.zero_grad()
-        logits, loss = model(dummy_input, targets=dummy_targets)
-        loss.backward()
-        optimizer.step()
-        
-        dt = time.time() - t0
-        print(f"Step {step} | Loss: {loss.item():.4f} | Time: {dt*1000:.2f}ms")
-        
-    print("\nDummy test successful! No crashes. Loss is decreasing/updating.")
+        for step, (x, y) in enumerate(dataloader):
+            t0 = time.time()
+            
+            x, y = x.to(device), y.to(device)
+            
+            optimizer.zero_grad()
+            logits, loss = model(x, targets=y)
+            loss.backward()
+            optimizer.step()
+            
+            dt = time.time() - t0
+            
+            if step % 10 == 0 or step == len(dataloader) - 1:
+                print(f"Step {step} | Loss: {loss.item():.4f} | Time: {dt*1000:.2f}ms")
+                
+    # Save checkpoint weights for inference later
+    os.makedirs("checkpoints", exist_ok=True)
+    checkpoint_path = f"checkpoints/megha_level_{level}.pt"
+    torch.save(model.state_dict(), checkpoint_path)
+    print(f"\nTraining complete. Model weights saved to {checkpoint_path}")
 
 if __name__ == "__main__":
-    run_dummy_test()
+    train_level(0)
