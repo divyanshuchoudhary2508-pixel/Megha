@@ -21,9 +21,13 @@ class MeghaBlock(nn.Module):
         )
 
     def forward(self, x, attention_mask=None):
-        # x shape: (B, T, C)
-        # Using causal=True supported in torch >= 2.0
-        attn_out, _ = self.attn(self.ln_1(x), self.ln_1(x), self.ln_1(x), need_weights=False, is_causal=True)
+        B, T, C = x.shape
+        attn_mask = nn.Transformer.generate_square_subsequent_mask(T, device=x.device)
+        
+        attn_out, _ = self.attn(
+            self.ln_1(x), self.ln_1(x), self.ln_1(x), 
+            attn_mask=attn_mask, need_weights=False, is_causal=True
+        )
         x = x + attn_out
         x = x + self.mlp(self.ln_2(x))
         return x
