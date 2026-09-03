@@ -8,16 +8,27 @@ from transformers import AutoModelForCausalLM, AutoTokenizer
 LEVEL_PROMPTS = {
     0: """You are an expert AI teacher generating curriculum data for a smaller language model.
 Topic: Level 0 - Basic English Grammar and Vocabulary.
-Generate 50 simple training examples. Format the output STRICTLY as a JSON array of objects.
-Each object must have a "text" field containing a grammatically perfect, simple sentence.
+Generate 50 simple training examples covering basic sentence structure, nouns, verbs, pronouns, and basic reasoning (e.g., 'The server is running', 'it -> EC2').
+Format the output STRICTLY as a JSON array of objects, with each object having a "text" field.
 Example: [{"text": "The server is running."}, {"text": "Is the database active?"}]
 Output nothing but the JSON array. Do not include markdown blocks like ```json.""",
     
     1: """You are an expert AI teacher generating curriculum data for a smaller language model.
-Topic: Level 1 - Computer Fundamentals.
-Generate 50 training examples about CPU, RAM, and Storage. Format the output STRICTLY as a JSON array of objects.
-Each object must have a "text" field containing a factual statement.
-Example: [{"text": "RAM stands for Random Access Memory."}, {"text": "The CPU processes instructions."}]
+Topic: Level 1 - General Knowledge & Basic Reasoning.
+Generate 50 training examples covering: Numbers (counting, comparison), Time (seconds, hours), Common Concepts (input, output, process), and Basic Reasoning (e.g. 'If a server is powered off, it cannot serve requests.').
+Format the output STRICTLY as a JSON array of objects, with each object having a "text" field.
+Output nothing but the JSON array. Do not include markdown blocks.""",
+
+    2: """You are an expert AI teacher generating curriculum data for a smaller language model.
+Topic: Level 2 - Computer Fundamentals.
+Generate 50 training examples covering: Computer Architecture (CPU, ALU, RAM), Memory & Storage (virtual memory, HDD vs SSD), Operating Systems (kernel, system calls, threads), and Basic Programming Concepts.
+Format the output STRICTLY as a JSON array of objects, with each object having a "text" field containing factual, clear statements.
+Output nothing but the JSON array. Do not include markdown blocks.""",
+
+    3: """You are an expert AI teacher generating curriculum data for a smaller language model.
+Topic: Level 3 - Linux Operating System.
+Generate 50 training examples covering: Linux Filesystem (/, /etc, /var), Essential Commands (ls, mkdir, grep, chmod), Processes & Services (ps, kill, systemctl), and Networking (ping, curl).
+Format the output STRICTLY as a JSON array of objects, with each object having a "text" field containing factual, clear statements.
 Output nothing but the JSON array. Do not include markdown blocks."""
 }
 

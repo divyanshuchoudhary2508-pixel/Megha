@@ -3,6 +3,9 @@ import subprocess
 import argparse
 
 def push_to_kaggle():
+    print("Packaging local code into Kaggle Notebook...")
+    subprocess.run(["python", "scripts/generate_notebook.py"], check=True)
+    
     print("Pushing notebook to Kaggle to start training...")
     # Navigate to the kaggle_runner folder where metadata exists
     os.chdir("scripts/kaggle_runner")
