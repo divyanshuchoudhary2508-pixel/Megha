@@ -34,7 +34,6 @@ Output nothing but the JSON array. Do not include markdown blocks."""
 
 def generate_curriculum_real(level: int):
     print(f"Loading Qwen model for Level {level} curriculum generation...")
-    # Kaggle par Qwen 1.5B ya 3B chal jayega easily
     model_id = "Qwen/Qwen2.5-1.5B-Instruct"  
     
     tokenizer = AutoTokenizer.from_pretrained(model_id)
@@ -54,34 +53,51 @@ def generate_curriculum_real(level: int):
     text = tokenizer.apply_chat_template(messages, tokenize=False, add_generation_prompt=True)
     model_inputs = tokenizer([text], return_tensors="pt").to(model.device)
     
-    print("Teacher is generating data (this might take a minute)...")
-    generated_ids = model.generate(
-        **model_inputs,
-        max_new_tokens=2048,
-        temperature=0.7
-    )
+    all_data = []
+    target_examples = 1000  # We want 1000 high-quality examples per level
+    batch_size = 50         # Qwen will generate 50 at a time
     
-    generated_ids = [
-        output_ids[len(input_ids):] for input_ids, output_ids in zip(model_inputs.input_ids, generated_ids)
-    ]
+    print(f"Teacher is generating {target_examples} examples for Level {level} (in batches)...")
     
-    response = tokenizer.batch_decode(generated_ids, skip_special_tokens=True)[0]
-    
-    # Try parsing the JSON
-    try:
-        # Strip markdown formatting agar Teacher ne galti se include kar diya ho
-        if "```json" in response:
-            response = response.split("```json")[1].split("```")[0]
-        elif "```" in response:
-            response = response.split("```")[1].split("```")[0]
+    iterations = target_examples // batch_size
+    for i in range(iterations):
+        print(f"Generating batch {i+1}/{iterations}...")
+        try:
+            generated_ids = model.generate(
+                **model_inputs,
+                max_new_tokens=2048,
+                temperature=0.8,
+                do_sample=True,
+                pad_token_id=tokenizer.eos_token_id
+            )
             
-        data = json.loads(response.strip())
-        print(f"Successfully generated {len(data)} high-quality examples!")
-        return data
-    except json.JSONDecodeError as e:
-        print("Failed to parse JSON from Qwen. Raw output:")
-        print(response)
-        raise e
+            generated_ids = [
+                output_ids[len(input_ids):] for input_ids, output_ids in zip(model_inputs.input_ids, generated_ids)
+            ]
+            
+            response = tokenizer.batch_decode(generated_ids, skip_special_tokens=True)[0]
+            
+            # Parse JSON
+            if "```json" in response:
+                response = response.split("```json")[1].split("```")[0]
+            elif "```" in response:
+                response = response.split("```")[1].split("```")[0]
+                
+            data = json.loads(response.strip())
+            
+            # Ensure it's a list
+            if isinstance(data, list):
+                all_data.extend(data)
+            elif isinstance(data, dict) and "text" in data:
+                all_data.append(data)
+                
+            print(f"Current total for Level {level}: {len(all_data)} examples.")
+            
+        except Exception as e:
+            print(f"Batch {i+1} failed to parse or generate, skipping. Error: {e}")
+            
+    print(f"Successfully generated {len(all_data)} high-quality examples for Level {level}!")
+    return all_data
 
 def generate_curriculum_dummy(level: int):
     print(f"Generating DUMMY curriculum for Level {level} (Local PC Test)...")
