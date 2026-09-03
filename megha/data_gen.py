@@ -92,8 +92,8 @@ Format the output STRICTLY as a JSON array of objects, with each object having a
 Output nothing but the JSON array. Do not include markdown blocks.""",
 
     14: """You are an expert AI teacher generating curriculum data for a smaller language model.
-Topic: Level 14 - Multi-step Problem Solving.
-Generate advanced training examples showing step-by-step problem resolution: Identify symptoms -> Collect evidence -> Generate hypotheses -> Test -> Fix -> Verify.
+Topic: Level 14 - CloudOps Multi-step Problem Solving.
+Generate advanced Cloud Computing and DevOps training examples showing step-by-step problem resolution for Linux, AWS, Docker, and Kubernetes issues: Identify symptoms -> Collect evidence -> Generate hypotheses -> Test -> Fix -> Verify.
 Format the output STRICTLY as a JSON array of objects, with each object having a "text" field.
 Output nothing but the JSON array. Do not include markdown blocks."""
 }

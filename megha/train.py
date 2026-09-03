@@ -15,6 +15,14 @@ def train_level(level: int):
     print(f"Using device: {device}")
     
     model = MeghaModel(config).to(device)
+    if level > 0:
+        prev_ckpt = f"checkpoints/megha_level_{level-1}.pt"
+        if os.path.exists(prev_ckpt):
+            print(f"Loading previous knowledge from {prev_ckpt} for Continual Learning...")
+            model.load_state_dict(torch.load(prev_ckpt, map_location=device))
+        else:
+            print(f"Warning: {prev_ckpt} not found! Starting from scratch...")
+            
     num_params = sum(p.numel() for p in model.parameters())
     print(f"Model Parameters: {num_params / 1e6:.2f} M")
     
