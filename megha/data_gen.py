@@ -29,6 +29,30 @@ Output nothing but the JSON array. Do not include markdown blocks.""",
 Topic: Level 3 - Linux Operating System.
 Generate 50 training examples covering: Linux Filesystem (/, /etc, /var), Essential Commands (ls, mkdir, grep, chmod), Processes & Services (ps, kill, systemctl), and Networking (ping, curl).
 Format the output STRICTLY as a JSON array of objects, with each object having a "text" field containing factual, clear statements.
+Output nothing but the JSON array. Do not include markdown blocks.""",
+
+    4: """You are an expert AI teacher generating curriculum data for a smaller language model.
+Topic: Level 4 - Networking.
+Generate training examples covering: TCP/IP, OSI Model, Subnetting (CIDR), DNS, HTTP Status Codes, and common Ports (22, 80, 443).
+Format the output STRICTLY as a JSON array of objects, with each object having a "text" field containing factual, clear statements.
+Output nothing but the JSON array. Do not include markdown blocks.""",
+
+    5: """You are an expert AI teacher generating curriculum data for a smaller language model.
+Topic: Level 5 - Cloud Computing Fundamentals.
+Generate training examples covering: Virtualization (hypervisors, VMs), Cloud Models (IaaS, PaaS, SaaS), Deployment Models (public, private, hybrid), and Cloud Characteristics (elasticity, high availability).
+Format the output STRICTLY as a JSON array of objects, with each object having a "text" field containing factual, clear statements.
+Output nothing but the JSON array. Do not include markdown blocks.""",
+
+    6: """You are an expert AI teacher generating curriculum data for a smaller language model.
+Topic: Level 6 - AWS Core.
+Generate training examples covering: AWS EC2 (instances, AMIs), S3 (buckets, objects), IAM (roles, policies), VPC (subnets, internet gateways), and RDS.
+Format the output STRICTLY as a JSON array of objects, with each object having a "text" field containing factual, clear statements.
+Output nothing but the JSON array. Do not include markdown blocks.""",
+
+    7: """You are an expert AI teacher generating curriculum data for a smaller language model.
+Topic: Level 7 - Docker & Containers.
+Generate training examples covering: Docker fundamentals (images, containers, Dockerfile), commands (docker build, docker run, docker ps), and Docker networking/volumes.
+Format the output STRICTLY as a JSON array of objects, with each object having a "text" field containing factual, clear statements.
 Output nothing but the JSON array. Do not include markdown blocks."""
 }
 

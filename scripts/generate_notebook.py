@@ -52,8 +52,12 @@ cells.append({
         "!python megha/data_gen.py --level 1 --real\n",
         "!python megha/data_gen.py --level 2 --real\n",
         "!python megha/data_gen.py --level 3 --real\n",
+        "!python megha/data_gen.py --level 4 --real\n",
+        "!python megha/data_gen.py --level 5 --real\n",
+        "!python megha/data_gen.py --level 6 --real\n",
+        "!python megha/data_gen.py --level 7 --real\n",
         "!python -m megha.tokenizer\n",
-        "!python -c \"from megha.train import train_level; train_level(0); train_level(1); train_level(2); train_level(3)\"\n",
+        "!python -c \"from megha.train import train_level; [train_level(i) for i in range(8)]\"\n",
         "!cp -r checkpoints/* /kaggle/working/ || true\n"
     ]
 })
