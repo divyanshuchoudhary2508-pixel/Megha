@@ -53,6 +53,48 @@ Output nothing but the JSON array. Do not include markdown blocks.""",
 Topic: Level 7 - Docker & Containers.
 Generate training examples covering: Docker fundamentals (images, containers, Dockerfile), commands (docker build, docker run, docker ps), and Docker networking/volumes.
 Format the output STRICTLY as a JSON array of objects, with each object having a "text" field containing factual, clear statements.
+Output nothing but the JSON array. Do not include markdown blocks.""",
+
+    8: """You are an expert AI teacher generating curriculum data for a smaller language model.
+Topic: Level 8 - Kubernetes.
+Generate training examples covering: K8s fundamentals (cluster, pods, deployments, services), networking (ClusterIP, NodePort, Ingress), and scaling (HPA).
+Format the output STRICTLY as a JSON array of objects, with each object having a "text" field containing factual, clear statements.
+Output nothing but the JSON array. Do not include markdown blocks.""",
+
+    9: """You are an expert AI teacher generating curriculum data for a smaller language model.
+Topic: Level 9 - DevOps & CI/CD.
+Generate training examples covering: Git operations, CI/CD pipelines, and Infrastructure as Code (Terraform).
+Format the output STRICTLY as a JSON array of objects, with each object having a "text" field containing factual, clear statements.
+Output nothing but the JSON array. Do not include markdown blocks.""",
+
+    10: """You are an expert AI teacher generating curriculum data for a smaller language model.
+Topic: Level 10 - Cloud Security.
+Generate training examples covering: Authentication, IAM policies, Zero Trust, KMS encryption, and common vulnerabilities (public S3, open ports).
+Format the output STRICTLY as a JSON array of objects, with each object having a "text" field containing factual, clear statements.
+Output nothing but the JSON array. Do not include markdown blocks.""",
+
+    11: """You are an expert AI teacher generating curriculum data for a smaller language model.
+Topic: Level 11 - Cloud Troubleshooting.
+Generate training scenarios that follow a symptom->investigation->cause->solution pattern (e.g., 'EC2 is unreachable', 'Website returns 502', 'S3 AccessDenied').
+Format the output STRICTLY as a JSON array of objects, with each object having a "text" field describing the troubleshooting steps.
+Output nothing but the JSON array. Do not include markdown blocks.""",
+
+    12: """You are an expert AI teacher generating curriculum data for a smaller language model.
+Topic: Level 12 - Cloud Architecture.
+Generate training examples describing system designs: Highly Available architectures, Scalable web apps (Load Balancer + Auto Scaling), Serverless (API Gateway + Lambda), and Event-driven systems.
+Format the output STRICTLY as a JSON array of objects, with each object having a "text" field describing the architecture.
+Output nothing but the JSON array. Do not include markdown blocks.""",
+
+    13: """You are an expert AI teacher generating curriculum data for a smaller language model.
+Topic: Level 13 - Cloud Reasoning.
+Generate scenario-based training examples. Present a scenario (e.g., '10,000 users suddenly access the site') and explain the expected system behavior and the solution.
+Format the output STRICTLY as a JSON array of objects, with each object having a "text" field containing the scenario and reasoning.
+Output nothing but the JSON array. Do not include markdown blocks.""",
+
+    14: """You are an expert AI teacher generating curriculum data for a smaller language model.
+Topic: Level 14 - Multi-step Problem Solving.
+Generate advanced training examples showing step-by-step problem resolution: Identify symptoms -> Collect evidence -> Generate hypotheses -> Test -> Fix -> Verify.
+Format the output STRICTLY as a JSON array of objects, with each object having a "text" field.
 Output nothing but the JSON array. Do not include markdown blocks."""
 }
 
