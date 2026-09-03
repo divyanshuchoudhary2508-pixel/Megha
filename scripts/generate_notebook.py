@@ -49,8 +49,11 @@ cells.append({
     "outputs": [],
     "source": [
         "!python megha/data_gen.py --level 0 --real\n",
+        "!python megha/data_gen.py --level 1 --real\n",
+        "!python megha/data_gen.py --level 2 --real\n",
+        "!python megha/data_gen.py --level 3 --real\n",
         "!python -m megha.tokenizer\n",
-        "!python -m megha.train\n",
+        "!python -c \"from megha.train import train_level; train_level(0); train_level(1); train_level(2); train_level(3)\"\n",
         "!cp -r checkpoints/* /kaggle/working/ || true\n"
     ]
 })
