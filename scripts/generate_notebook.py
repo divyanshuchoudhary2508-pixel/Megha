@@ -8,7 +8,8 @@ files = [
     "megha/tokenizer.py",
     "megha/dataset.py",
     "megha/data_gen.py",
-    "megha/train.py"
+    "megha/train.py",
+    "megha/evaluate.py"
 ]
 
 cells = []
