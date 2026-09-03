@@ -5,3 +5,4 @@ pyyaml
 tqdm
 huggingface_hub
 kaggle
+accelerate
