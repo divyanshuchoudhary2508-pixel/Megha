@@ -58,7 +58,8 @@ Output nothing but the JSON array. Do not include markdown blocks."""
 
 def generate_curriculum_real(level: int):
     print(f"Loading Qwen model for Level {level} curriculum generation...")
-    model_id = "Qwen/Qwen2.5-1.5B-Instruct"  
+    # Upgraded Teacher to 3 Billion Parameters for much smarter data generation
+    model_id = "Qwen/Qwen2.5-3B-Instruct"  
     
     tokenizer = AutoTokenizer.from_pretrained(model_id)
     model = AutoModelForCausalLM.from_pretrained(
