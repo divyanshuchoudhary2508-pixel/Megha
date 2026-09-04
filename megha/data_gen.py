@@ -136,8 +136,8 @@ def generate_curriculum_real(level: int):
     model_inputs = tokenizer([text], return_tensors="pt").to(model.device)
     
     all_data = []
-    target_examples = 1000  # We want 1000 high-quality examples per level
-    batch_size = 50         # Qwen will generate 50 at a time
+    target_examples = 200   # 200 focused, high-quality Q&A pairs per level
+    batch_size = 50         # Qwen generates 50 at a time (4 batches per level)
     
     print(f"Teacher is generating {target_examples} examples for Level {level} (in batches)...")
     
@@ -165,11 +165,22 @@ def generate_curriculum_real(level: int):
             elif "```" in response:
                 response = response.split("```")[1].split("```")[0]
                 
-            data = json.loads(response.strip())
+            clean_response = response.strip()
+            data = None
+            try:
+                data = json.loads(clean_response, strict=False)
+            except Exception:
+                # Fallback: Robust regex extraction if LLM introduces unescaped quotes/newlines
+                import re
+                matches = re.findall(r'"text"\s*:\s*"(.*?)"', clean_response, re.DOTALL)
+                if matches:
+                    data = [{"text": m.replace('\\n', '\n').strip()} for m in matches]
+                else:
+                    raise
             
             # Ensure it's a list
             if isinstance(data, list):
-                all_data.extend(data)
+                all_data.extend([d for d in data if isinstance(d, dict) and "text" in d and d["text"]])
             elif isinstance(data, dict) and "text" in data:
                 all_data.append(data)
                 

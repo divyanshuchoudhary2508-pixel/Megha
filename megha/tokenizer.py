@@ -37,23 +37,21 @@ if __name__ == "__main__":
     config = MeghaConfig()
     megha_tok = MeghaTokenizer(config)
     
-    # 1. Load data from the data folder
-    data_path = "data/level_0_curriculum.json"
-    if not os.path.exists(data_path):
-        print(f"Error: Data file {data_path} not found. Run data_gen.py first.")
-        exit(1)
-        
-    # 2. Extract text into an iterator from all available curriculum files
+    # 1. Extract text into an iterator from all available curriculum files
     def text_iterator():
         import glob
         files = glob.glob("data/level_*_curriculum.json")
         for file_path in files:
-            with open(file_path, "r", encoding="utf-8") as f:
-                dataset = json.load(f)
-                for item in dataset:
-                    yield item["text"]
+            try:
+                with open(file_path, "r", encoding="utf-8") as f:
+                    dataset = json.load(f)
+                    for item in dataset:
+                        if isinstance(item, dict) and "text" in item and item["text"]:
+                            yield item["text"]
+            except Exception:
+                pass
             
-    # 3. Train
+    # 2. Train
     megha_tok.train_from_iterator(text_iterator())
     
     # 4. Save
