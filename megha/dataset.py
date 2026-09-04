@@ -61,6 +61,6 @@ def get_dataloader(data_path: str, tokenizer_path: str, config: MeghaConfig):
         dataset, 
         batch_size=config.batch_size, 
         shuffle=True, 
-        drop_last=True
+        drop_last=False  # Never drop data - even 1 batch is valuable
     )
     return dataloader, tokenizer

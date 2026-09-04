@@ -37,7 +37,9 @@ def train_level(level: int):
         
     print(f"Dataset loaded. Total batches per epoch: {len(dataloader)}")
     if len(dataloader) == 0:
-        print("Data is too small for the batch size! Try generating more sentences in data_gen.py")
+        print(f"Warning: Level {level} data too small. Saving checkpoint from previous level and continuing.")
+        os.makedirs("checkpoints", exist_ok=True)
+        torch.save(model.state_dict(), f"checkpoints/megha_level_{level}.pt")
         return
         
     optimizer = optim.AdamW(model.parameters(), lr=config.learning_rate)

@@ -14,13 +14,17 @@ def run_evaluation():
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     megha_model = MeghaModel(config).to(device)
     
-    # Load the latest checkpoint (Level 14)
-    ckpt_path = "checkpoints/megha_level_14.pt"
-    if os.path.exists(ckpt_path):
-        megha_model.load_state_dict(torch.load(ckpt_path, map_location=device))
-        print(f"Loaded MEGHA from {ckpt_path}")
-    else:
-        print("Warning: Level 14 checkpoint not found. Using untrained MEGHA for testing.")
+    # Load the best available checkpoint (Level 14 first, then fallback)
+    loaded = False
+    for lvl in range(14, -1, -1):
+        ckpt_path = f"checkpoints/megha_level_{lvl}.pt"
+        if os.path.exists(ckpt_path):
+            megha_model.load_state_dict(torch.load(ckpt_path, map_location=device))
+            print(f"Loaded MEGHA from {ckpt_path} (Level {lvl})")
+            loaded = True
+            break
+    if not loaded:
+        print("CRITICAL: No checkpoint found at all! Evaluation will use random weights.")
         
     megha_model.eval()
     megha_tok = MeghaTokenizer(config)
@@ -95,7 +99,7 @@ Output ONLY the numeric score (e.g., 75)."""
         )
         
         generated_ids = [
-            output_ids[len(input_ids):] for input_ids, output_ids in zip(model_inputs.input_ids, generated_ids)
+            out[len(inp):] for inp, out in zip(model_inputs.input_ids, generated_ids)
         ]
         
         score_text = teacher_tok.batch_decode(generated_ids, skip_special_tokens=True)[0].strip()

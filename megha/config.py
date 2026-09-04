@@ -8,6 +8,6 @@ class MeghaConfig:
     n_layers: int = 6
     n_heads: int = 4
     dropout: float = 0.1
-    batch_size: int = 32
+    batch_size: int = 4       # Small batch: works even with small per-level datasets
     learning_rate: float = 5e-4
-    epochs: int = 6
+    epochs: int = 10          # 10 epochs for proper loss convergence
