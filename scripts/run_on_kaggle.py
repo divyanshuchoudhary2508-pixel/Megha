@@ -6,11 +6,9 @@ def push_to_kaggle():
     print("Packaging local code into Kaggle Notebook...")
     subprocess.run(["python", "scripts/generate_notebook.py"], check=True)
     
-    print("Pushing notebook to Kaggle to start training...")
-    # Navigate to the kaggle_runner folder where metadata exists
-    os.chdir("scripts/kaggle_runner")
-    subprocess.run(["kaggle", "kernels", "push"])
-    print("Kaggle job submitted! You can check progress on Kaggle website.")
+    print("Pushing notebook to Kaggle to start training with GPU T4x2...")
+    subprocess.run(["kaggle", "kernels", "push", "-p", "scripts/kaggle_runner", "--accelerator", "NvidiaTeslaT4"], check=True)
+    print("Kaggle job submitted successfully with NvidiaTeslaT4 GPU!")
 
 def pull_checkpoints(username):
     print("Pulling output checkpoints from Kaggle...")
