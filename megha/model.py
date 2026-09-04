@@ -73,12 +73,16 @@ class MeghaModel(nn.Module):
             
         return logits, loss
         
-    def generate(self, idx, max_new_tokens):
-        # Basic greedy generation for testing
+    def generate(self, idx, max_new_tokens, temperature=0.7, top_k=40):
         for _ in range(max_new_tokens):
             idx_cond = idx[:, -self.config.max_seq_len:]
             logits, _ = self(idx_cond)
-            logits = logits[:, -1, :] # focus on last time step
+            logits = logits[:, -1, :] / max(temperature, 1e-5)
+            
+            if top_k is not None and top_k > 0:
+                v, _ = torch.topk(logits, min(top_k, logits.size(-1)))
+                logits[logits < v[:, [-1]]] = -float('Inf')
+                
             probs = torch.nn.functional.softmax(logits, dim=-1)
             idx_next = torch.multinomial(probs, num_samples=1)
             idx = torch.cat((idx, idx_next), dim=1)

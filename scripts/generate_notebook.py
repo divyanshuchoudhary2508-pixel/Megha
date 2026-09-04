@@ -50,7 +50,8 @@ execution_source = gen_commands + [
     "!python -m megha.tokenizer\n",
     "!python -c \"from megha.train import train_level; [train_level(i) for i in range(15)]\"\n",
     "!python -m megha.evaluate\n",
-    "!cp -r checkpoints/* /kaggle/working/ || true\n"
+    "!cp -r checkpoints/* /kaggle/working/ || true\n",
+    "!cp -r data /kaggle/working/ || true\n"
 ]
 
 cells.append({

@@ -16,28 +16,36 @@ class MeghaDataset(Dataset):
         with open(data_path, "r", encoding="utf-8") as f:
             raw_data = json.load(f)
             
-        # Saare text sentences ko encode karke ek long sequence banayenge
+        # Saare text sentences ko encode karke ek sequence banayenge with EOS separator
+        eos_tokens = self.tokenizer.encode("<|endoftext|>")
+        if not eos_tokens:
+            eos_tokens = [0]
+            
         all_tokens = []
         for item in raw_data:
-            text = item["text"]
+            text = item.get("text", "")
+            if not text:
+                continue
             tokens = self.tokenizer.encode(text)
             all_tokens.extend(tokens)
+            all_tokens.extend(eos_tokens)
             
-        # Agar data chhota hai (jaise abhi 5 sentences hain), 
-        # toh max_seq_len ko temporary chhota kar dete hain warning se bachne ke liye
+        # Agar data chhota hai, pad with EOS
         if len(all_tokens) <= self.config.max_seq_len:
-            print(f"Warning: Data size ({len(all_tokens)}) is smaller than max_seq_len ({self.config.max_seq_len}). Padding with 0s.")
             pad_len = self.config.max_seq_len - len(all_tokens) + 2
-            all_tokens.extend([0] * pad_len)
+            all_tokens.extend(eos_tokens * (pad_len // len(eos_tokens) + 1))
             
         self.data = torch.tensor(all_tokens, dtype=torch.long)
+        # Stride = max_seq_len // 2 (gives 2x coverage instead of 512x crazy overfitting)
+        self.stride = max(1, self.config.max_seq_len // 2)
         
     def __len__(self):
-        return len(self.data) - self.config.max_seq_len - 1
+        return max(1, (len(self.data) - self.config.max_seq_len - 1) // self.stride)
         
     def __getitem__(self, idx):
-        x = self.data[idx : idx + self.config.max_seq_len]
-        y = self.data[idx + 1 : idx + self.config.max_seq_len + 1]
+        start_idx = idx * self.stride
+        x = self.data[start_idx : start_idx + self.config.max_seq_len]
+        y = self.data[start_idx + 1 : start_idx + self.config.max_seq_len + 1]
         return x, y
 
 def get_dataloader(data_path: str, tokenizer_path: str, config: MeghaConfig):

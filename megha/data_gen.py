@@ -8,92 +8,107 @@ from transformers import AutoModelForCausalLM, AutoTokenizer
 LEVEL_PROMPTS = {
     0: """You are an expert AI teacher generating curriculum data for a smaller language model.
 Topic: Level 0 - Basic English Grammar and Vocabulary.
-Generate 50 simple training examples covering basic sentence structure, nouns, verbs, pronouns, and basic reasoning (e.g., 'The server is running', 'it -> EC2').
-Format the output STRICTLY as a JSON array of objects, with each object having a "text" field.
-Example: [{"text": "The server is running."}, {"text": "Is the database active?"}]
-Output nothing but the JSON array. Do not include markdown blocks like ```json.""",
+Generate 50 simple Q&A examples covering basic sentence structure, nouns, verbs, and pronouns.
+Format each example STRICTLY as: "Q: <simple question>\nA: <simple answer>".
+Format the output STRICTLY as a JSON array of objects, each with a "text" field.
+Example: [{"text": "Q: Is the cat sleeping?\nA: Yes, the cat is sleeping on the bed."}]
+Output nothing but the JSON array. Do not include markdown blocks.""",
     
     1: """You are an expert AI teacher generating curriculum data for a smaller language model.
 Topic: Level 1 - General Knowledge & Basic Reasoning.
-Generate 50 training examples covering: Numbers (counting, comparison), Time (seconds, hours), Common Concepts (input, output, process), and Basic Reasoning (e.g. 'If a server is powered off, it cannot serve requests.').
+Generate 50 Q&A examples covering numbers, comparison, time, input/output, and basic cause-effect reasoning.
+Format each example STRICTLY as: "Q: <question>\nA: <clear answer>".
 Format the output STRICTLY as a JSON array of objects, with each object having a "text" field.
 Output nothing but the JSON array. Do not include markdown blocks.""",
 
     2: """You are an expert AI teacher generating curriculum data for a smaller language model.
 Topic: Level 2 - Computer Fundamentals.
-Generate 50 training examples covering: Computer Architecture (CPU, ALU, RAM), Memory & Storage (virtual memory, HDD vs SSD), Operating Systems (kernel, system calls, threads), and Basic Programming Concepts.
-Format the output STRICTLY as a JSON array of objects, with each object having a "text" field containing factual, clear statements.
+Generate 50 Q&A examples covering CPU, RAM, Storage (HDD vs SSD), Operating Systems (kernel, processes), and basic computing.
+Format each example STRICTLY as: "Q: <question>\nA: <clear factual answer>".
+Format the output STRICTLY as a JSON array of objects, with each object having a "text" field.
 Output nothing but the JSON array. Do not include markdown blocks.""",
 
     3: """You are an expert AI teacher generating curriculum data for a smaller language model.
 Topic: Level 3 - Linux Operating System.
-Generate 50 training examples covering: Linux Filesystem (/, /etc, /var), Essential Commands (ls, mkdir, grep, chmod), Processes & Services (ps, kill, systemctl), and Networking (ping, curl).
-Format the output STRICTLY as a JSON array of objects, with each object having a "text" field containing factual, clear statements.
+Generate 50 Q&A examples covering Linux commands (chmod, chown, ls, grep, ps, systemctl), filesystem (/etc, /var), and file permissions.
+Format each example STRICTLY as: "Q: <question>\nA: <clear factual answer>".
+Format the output STRICTLY as a JSON array of objects, with each object having a "text" field.
 Output nothing but the JSON array. Do not include markdown blocks.""",
 
     4: """You are an expert AI teacher generating curriculum data for a smaller language model.
 Topic: Level 4 - Networking.
-Generate training examples covering: TCP/IP, OSI Model, Subnetting (CIDR), DNS, HTTP Status Codes, and common Ports (22, 80, 443).
-Format the output STRICTLY as a JSON array of objects, with each object having a "text" field containing factual, clear statements.
+Generate Q&A examples covering TCP/IP, OSI model layers, DNS, CIDR subnetting, HTTP status codes (200, 404, 502), and common ports (22, 80, 443).
+Format each example STRICTLY as: "Q: <question>\nA: <clear factual answer>".
+Format the output STRICTLY as a JSON array of objects, with each object having a "text" field.
 Output nothing but the JSON array. Do not include markdown blocks.""",
 
     5: """You are an expert AI teacher generating curriculum data for a smaller language model.
 Topic: Level 5 - Cloud Computing Fundamentals.
-Generate training examples covering: Virtualization (hypervisors, VMs), Cloud Models (IaaS, PaaS, SaaS), Deployment Models (public, private, hybrid), and Cloud Characteristics (elasticity, high availability).
-Format the output STRICTLY as a JSON array of objects, with each object having a "text" field containing factual, clear statements.
+Generate Q&A examples covering virtualization, Cloud models (IaaS, PaaS, SaaS), deployment models (public, private, hybrid), and high availability.
+Format each example STRICTLY as: "Q: <question>\nA: <clear factual answer>".
+Format the output STRICTLY as a JSON array of objects, with each object having a "text" field.
 Output nothing but the JSON array. Do not include markdown blocks.""",
 
     6: """You are an expert AI teacher generating curriculum data for a smaller language model.
 Topic: Level 6 - AWS Core.
-Generate training examples covering: AWS EC2 (instances, AMIs), S3 (buckets, objects), IAM (roles, policies), VPC (subnets, internet gateways), and RDS.
-Format the output STRICTLY as a JSON array of objects, with each object having a "text" field containing factual, clear statements.
+Generate Q&A examples covering Amazon EC2, S3 bucket storage, IAM roles and policies, VPC, and RDS databases.
+Format each example STRICTLY as: "Q: <question>\nA: <clear factual answer>".
+Format the output STRICTLY as a JSON array of objects, with each object having a "text" field.
 Output nothing but the JSON array. Do not include markdown blocks.""",
 
     7: """You are an expert AI teacher generating curriculum data for a smaller language model.
 Topic: Level 7 - Docker & Containers.
-Generate training examples covering: Docker fundamentals (images, containers, Dockerfile), commands (docker build, docker run, docker ps), and Docker networking/volumes.
-Format the output STRICTLY as a JSON array of objects, with each object having a "text" field containing factual, clear statements.
+Generate Q&A examples covering Docker containers, images, Dockerfile instructions (FROM, RUN, CMD, COPY), docker build, docker run, and volumes.
+Format each example STRICTLY as: "Q: <question>\nA: <clear factual answer>".
+Format the output STRICTLY as a JSON array of objects, with each object having a "text" field.
 Output nothing but the JSON array. Do not include markdown blocks.""",
 
     8: """You are an expert AI teacher generating curriculum data for a smaller language model.
 Topic: Level 8 - Kubernetes.
-Generate training examples covering: K8s fundamentals (cluster, pods, deployments, services), networking (ClusterIP, NodePort, Ingress), and scaling (HPA).
-Format the output STRICTLY as a JSON array of objects, with each object having a "text" field containing factual, clear statements.
+Generate Q&A examples covering K8s pods, deployments, services (ClusterIP, NodePort), Ingress, and replica sets.
+Format each example STRICTLY as: "Q: <question>\nA: <clear factual answer>".
+Format the output STRICTLY as a JSON array of objects, with each object having a "text" field.
 Output nothing but the JSON array. Do not include markdown blocks.""",
 
     9: """You are an expert AI teacher generating curriculum data for a smaller language model.
 Topic: Level 9 - DevOps & CI/CD.
-Generate training examples covering: Git operations, CI/CD pipelines, and Infrastructure as Code (Terraform).
-Format the output STRICTLY as a JSON array of objects, with each object having a "text" field containing factual, clear statements.
+Generate Q&A examples covering Git commands, CI/CD pipelines, and Infrastructure as Code (Terraform).
+Format each example STRICTLY as: "Q: <question>\nA: <clear factual answer>".
+Format the output STRICTLY as a JSON array of objects, with each object having a "text" field.
 Output nothing but the JSON array. Do not include markdown blocks.""",
 
     10: """You are an expert AI teacher generating curriculum data for a smaller language model.
 Topic: Level 10 - Cloud Security.
-Generate training examples covering: Authentication, IAM policies, Zero Trust, KMS encryption, and common vulnerabilities (public S3, open ports).
-Format the output STRICTLY as a JSON array of objects, with each object having a "text" field containing factual, clear statements.
+Generate Q&A examples covering authentication, IAM policies, why public S3 buckets are dangerous, Zero Trust, and KMS encryption keys.
+Format each example STRICTLY as: "Q: <question>\nA: <clear factual answer>".
+Format the output STRICTLY as a JSON array of objects, with each object having a "text" field.
 Output nothing but the JSON array. Do not include markdown blocks.""",
 
     11: """You are an expert AI teacher generating curriculum data for a smaller language model.
 Topic: Level 11 - Cloud Troubleshooting.
-Generate training scenarios that follow a symptom->investigation->cause->solution pattern (e.g., 'EC2 is unreachable', 'Website returns 502', 'S3 AccessDenied').
-Format the output STRICTLY as a JSON array of objects, with each object having a "text" field describing the troubleshooting steps.
+Generate troubleshooting Q&A examples: symptoms, diagnosis, and fix (e.g. 502 Bad Gateway cause and fix, EC2 unreachable cause and fix, S3 AccessDenied).
+Format each example STRICTLY as: "Q: <troubleshooting question>\nA: <clear diagnostic and resolution steps>".
+Format the output STRICTLY as a JSON array of objects, with each object having a "text" field.
 Output nothing but the JSON array. Do not include markdown blocks.""",
 
     12: """You are an expert AI teacher generating curriculum data for a smaller language model.
 Topic: Level 12 - Cloud Architecture.
-Generate training examples describing system designs: Highly Available architectures, Scalable web apps (Load Balancer + Auto Scaling), Serverless (API Gateway + Lambda), and Event-driven systems.
-Format the output STRICTLY as a JSON array of objects, with each object having a "text" field describing the architecture.
+Generate Q&A examples covering Highly Available designs, Load Balancer + Auto Scaling, and Serverless API architectures.
+Format each example STRICTLY as: "Q: <architectural question>\nA: <clear architectural design explanation>".
+Format the output STRICTLY as a JSON array of objects, with each object having a "text" field.
 Output nothing but the JSON array. Do not include markdown blocks.""",
 
     13: """You are an expert AI teacher generating curriculum data for a smaller language model.
 Topic: Level 13 - Cloud Reasoning.
-Generate scenario-based training examples. Present a scenario (e.g., '10,000 users suddenly access the site') and explain the expected system behavior and the solution.
-Format the output STRICTLY as a JSON array of objects, with each object having a "text" field containing the scenario and reasoning.
+Generate scenario-based Q&A examples analyzing traffic spikes, failover strategies, and database bottlenecks.
+Format each example STRICTLY as: "Q: <scenario question>\nA: <logical step-by-step reasoning and solution>".
+Format the output STRICTLY as a JSON array of objects, with each object having a "text" field.
 Output nothing but the JSON array. Do not include markdown blocks.""",
 
     14: """You are an expert AI teacher generating curriculum data for a smaller language model.
 Topic: Level 14 - CloudOps Multi-step Problem Solving.
-Generate advanced Cloud Computing and DevOps training examples showing step-by-step problem resolution for Linux, AWS, Docker, and Kubernetes issues: Identify symptoms -> Collect evidence -> Generate hypotheses -> Test -> Fix -> Verify.
+Generate advanced Q&A examples showing step-by-step CloudOps problem resolution for Linux, AWS, Docker, and Kubernetes incidents.
+Format each example STRICTLY as: "Q: <incident question>\nA: Identify symptoms -> Collect evidence -> Form hypothesis -> Test and Fix -> Verify.".
 Format the output STRICTLY as a JSON array of objects, with each object having a "text" field.
 Output nothing but the JSON array. Do not include markdown blocks."""
 }

@@ -60,23 +60,25 @@ def run_evaluation():
             
         x = torch.tensor([input_ids], dtype=torch.long).to(device)
         
-        # Generate 20 tokens (Megha is still a small model, so answers might be brief/fragmented)
+        # Generate tokens using temperature and top_k sampling
         with torch.no_grad():
-            for _ in range(25):
-                logits, _ = megha_model(x)
-                next_token = torch.argmax(logits[:, -1, :], dim=-1).unsqueeze(0)
-                x = torch.cat((x, next_token), dim=1)
+            out_ids = megha_model.generate(x, max_new_tokens=40, temperature=0.7, top_k=40)
                     
-        megha_answer = megha_tok.decode(x[0].tolist())
+        full_decoded = megha_tok.decode(out_ids[0].tolist())
         # Clean up the output string
-        megha_answer = megha_answer.replace(prompt, "").strip()
+        megha_answer = full_decoded.replace(prompt, "").replace("<|endoftext|>", "").strip()
+        # Cut off at next question if it rambles
+        if "Q:" in megha_answer:
+            megha_answer = megha_answer.split("Q:")[0].strip()
+            
         print(f"MEGHA's Answer: {megha_answer}")
         
         # 2. Qwen grades the answer
-        grade_prompt = f"""You are grading an AI student. 
+        grade_prompt = f"""You are grading an AI student's answer.
 Question: {question}
 Student's Answer: {megha_answer}
-Rate the student's answer out of 100 based on accuracy and relevance. Only output the numeric score (e.g., 85). If the answer is gibberish, output 0."""
+Rate the student's answer out of 100 based on accuracy and conceptual relevance. If partially correct or relevant keywords are used, award partial marks (e.g., 40 to 80). If completely wrong or total gibberish, award 0.
+Output ONLY the numeric score (e.g., 75)."""
         
         messages = [
             {"role": "system", "content": "You are a strict grader. Output only a number between 0 and 100."},
