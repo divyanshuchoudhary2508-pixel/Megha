@@ -1,42 +1,37 @@
 import json
+import glob
 import torch
+import random
 from torch.utils.data import Dataset, DataLoader
 from .tokenizer import MeghaTokenizer
 from .config import MeghaConfig
 import os
 
 class MeghaDataset(Dataset):
-    def __init__(self, data_path: str, tokenizer: MeghaTokenizer, config: MeghaConfig):
+    def __init__(self, all_texts: list, tokenizer: MeghaTokenizer, config: MeghaConfig):
         self.config = config
         self.tokenizer = tokenizer
         
-        if not os.path.exists(data_path):
-            raise FileNotFoundError(f"{data_path} not found. Run data_gen.py first.")
-            
-        with open(data_path, "r", encoding="utf-8") as f:
-            raw_data = json.load(f)
-            
-        # Saare text sentences ko encode karke ek sequence banayenge with EOS separator
+        # EOS separator between each Q&A example
         eos_tokens = self.tokenizer.encode("<|endoftext|>")
         if not eos_tokens:
             eos_tokens = [0]
             
         all_tokens = []
-        for item in raw_data:
-            text = item.get("text", "")
+        for text in all_texts:
             if not text:
                 continue
             tokens = self.tokenizer.encode(text)
-            all_tokens.extend(tokens)
-            all_tokens.extend(eos_tokens)
+            if tokens:
+                all_tokens.extend(tokens)
+                all_tokens.extend(eos_tokens)
             
-        # Agar data chhota hai, pad with EOS
-        if len(all_tokens) <= self.config.max_seq_len:
-            pad_len = self.config.max_seq_len - len(all_tokens) + 2
-            all_tokens.extend(eos_tokens * (pad_len // len(eos_tokens) + 1))
+        # Pad if still too small
+        while len(all_tokens) <= self.config.max_seq_len + 1:
+            all_tokens.extend(eos_tokens * 10)
             
         self.data = torch.tensor(all_tokens, dtype=torch.long)
-        # Stride = max_seq_len // 2 (gives 2x coverage instead of 512x crazy overfitting)
+        # 50% stride: good balance between coverage and overfitting prevention
         self.stride = max(1, self.config.max_seq_len // 2)
         
     def __len__(self):
@@ -48,19 +43,78 @@ class MeghaDataset(Dataset):
         y = self.data[start_idx + 1 : start_idx + self.config.max_seq_len + 1]
         return x, y
 
-def get_dataloader(data_path: str, tokenizer_path: str, config: MeghaConfig):
+
+def load_texts_from_file(data_path: str) -> list:
+    """Load all Q&A texts from a single curriculum JSON file."""
+    if not os.path.exists(data_path):
+        return []
+    try:
+        with open(data_path, "r", encoding="utf-8") as f:
+            raw_data = json.load(f)
+        texts = []
+        for item in raw_data:
+            text = item.get("text", "")
+            if text and len(text.strip()) > 5:
+                texts.append(text.strip())
+        return texts
+    except Exception as e:
+        print(f"Warning: Could not load {data_path}: {e}")
+        return []
+
+
+def get_combined_dataloader(tokenizer_path: str, config: MeghaConfig, data_dir: str = "data"):
+    """
+    MIXED TRAINING: Load ALL levels' data, shuffle together, train ONE model.
+    This prevents Catastrophic Forgetting.
+    """
     tokenizer = MeghaTokenizer(config)
-    
     if os.path.exists(tokenizer_path):
         tokenizer.load(tokenizer_path)
     else:
         raise FileNotFoundError(f"Tokenizer not found at {tokenizer_path}. Run tokenizer.py first.")
-        
-    dataset = MeghaDataset(data_path, tokenizer, config)
+    
+    # Load all curriculum files
+    all_texts = []
+    files = sorted(glob.glob(f"{data_dir}/level_*_curriculum.json"))
+    
+    for fpath in files:
+        texts = load_texts_from_file(fpath)
+        all_texts.extend(texts)
+        print(f"  Loaded {len(texts)} examples from {os.path.basename(fpath)}")
+    
+    if not all_texts:
+        raise ValueError("No training data found! Run data_gen.py first.")
+    
+    # SHUFFLE: mix all levels together so model learns all topics uniformly
+    random.shuffle(all_texts)
+    print(f"\nTotal training examples (all levels combined): {len(all_texts)}")
+    
+    dataset = MeghaDataset(all_texts, tokenizer, config)
+    print(f"Total dataset chunks: {len(dataset)}")
+    
     dataloader = DataLoader(
-        dataset, 
-        batch_size=config.batch_size, 
-        shuffle=True, 
-        drop_last=False  # Never drop data - even 1 batch is valuable
+        dataset,
+        batch_size=config.batch_size,
+        shuffle=True,
+        drop_last=False
+    )
+    return dataloader, tokenizer
+
+
+def get_dataloader(data_path: str, tokenizer_path: str, config: MeghaConfig):
+    """Single-level loader (kept for backward compatibility)."""
+    tokenizer = MeghaTokenizer(config)
+    if os.path.exists(tokenizer_path):
+        tokenizer.load(tokenizer_path)
+    else:
+        raise FileNotFoundError(f"Tokenizer not found at {tokenizer_path}. Run tokenizer.py first.")
+    
+    texts = load_texts_from_file(data_path)
+    dataset = MeghaDataset(texts, tokenizer, config)
+    dataloader = DataLoader(
+        dataset,
+        batch_size=config.batch_size,
+        shuffle=True,
+        drop_last=False
     )
     return dataloader, tokenizer

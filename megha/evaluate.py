@@ -64,9 +64,9 @@ def run_evaluation():
             
         x = torch.tensor([input_ids], dtype=torch.long).to(device)
         
-        # Generate tokens using temperature and top_k sampling
+        # Generate tokens using temperature=0.5 (focused, not random)
         with torch.no_grad():
-            out_ids = megha_model.generate(x, max_new_tokens=40, temperature=0.7, top_k=40)
+            out_ids = megha_model.generate(x, max_new_tokens=50, temperature=0.5, top_k=40)
                     
         full_decoded = megha_tok.decode(out_ids[0].tolist())
         # Clean up the output string

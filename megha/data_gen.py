@@ -136,8 +136,8 @@ def generate_curriculum_real(level: int):
     model_inputs = tokenizer([text], return_tensors="pt").to(model.device)
     
     all_data = []
-    target_examples = 200   # 200 focused, high-quality Q&A pairs per level
-    batch_size = 50         # Qwen generates 50 at a time (4 batches per level)
+    target_examples = 300   # 300 Q&A pairs per level = 4500 total across 15 levels
+    batch_size = 50         # Qwen generates 50 at a time (6 batches per level)
     
     print(f"Teacher is generating {target_examples} examples for Level {level} (in batches)...")
     

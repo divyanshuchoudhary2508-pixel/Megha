@@ -48,7 +48,8 @@ gen_commands = [f"!python megha/data_gen.py --level {i} --real\n" for i in range
 # Execution cell
 execution_source = gen_commands + [
     "!python -m megha.tokenizer\n",
-    "!python -c \"from megha.train import train_level; [train_level(i) for i in range(15)]\"\n",
+    # MIXED TRAINING: one model trained on all levels shuffled together
+    "!python -c \"from megha.train import train_all; train_all()\"\n",
     "!python -m megha.evaluate\n",
     "!cp -r checkpoints/* /kaggle/working/ || true\n",
     "!cp -r data /kaggle/working/ || true\n"
