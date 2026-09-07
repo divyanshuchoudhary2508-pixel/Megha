@@ -5,32 +5,35 @@ from .model import MeghaModel
 from .config import MeghaConfig
 from .tokenizer import MeghaTokenizer
 import os
+import re
 
 def run_evaluation():
-    print("Starting MEGHA Evaluation Phase (Level 15)...")
+    print("Starting MEGHA Evaluation Phase...")
     
     # Load MEGHA
     config = MeghaConfig()
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     megha_model = MeghaModel(config).to(device)
     
-    # Load the best available checkpoint (Level 14 first, then fallback)
+    # Load the best available checkpoint (newest first)
     loaded = False
-    for lvl in range(14, -1, -1):
-        ckpt_path = f"checkpoints/megha_level_{lvl}.pt"
-        if os.path.exists(ckpt_path):
-            megha_model.load_state_dict(torch.load(ckpt_path, map_location=device))
-            print(f"Loaded MEGHA from {ckpt_path} (Level {lvl})")
+    for ckpt_name in ["checkpoints/megha_final.pt"] + \
+                      [f"checkpoints/megha_level_{lvl}.pt" for lvl in range(14, -1, -1)]:
+        if os.path.exists(ckpt_name):
+            megha_model.load_state_dict(torch.load(ckpt_name, map_location=device))
+            print(f"Loaded MEGHA from {ckpt_name}")
             loaded = True
             break
     if not loaded:
-        print("CRITICAL: No checkpoint found at all! Evaluation will use random weights.")
+        print("CRITICAL: No checkpoint found! Evaluation will use random weights.")
         
     megha_model.eval()
     megha_tok = MeghaTokenizer(config)
     megha_tok.load("data/tokenizer.json")
+    eos_id = megha_tok.get_eos_token_id()
+    print(f"EOS token ID: {eos_id}")
     
-    # Load Qwen (Teacher)
+    # Load Qwen (Teacher/Grader)
     print("Loading Teacher (Qwen 3B) for grading...")
     teacher_id = "Qwen/Qwen2.5-3B-Instruct"
     teacher_tok = AutoTokenizer.from_pretrained(teacher_id)
@@ -40,100 +43,114 @@ def run_evaluation():
         device_map="auto"
     )
     
-    # 5 Sample Questions covering the syllabus
+    # 5 questions covering the curriculum
     test_questions = {
-        "Level 3 (Linux)": "What is the command to change file permissions in Linux?",
-        "Level 6 (AWS)": "What is Amazon EC2 used for?",
-        "Level 7 (Docker)": "What does a Dockerfile do?",
-        "Level 10 (Security)": "Why should you not store AWS access keys in a public S3 bucket?",
-        "Level 11 (Troubleshooting)": "If a website returns a 502 error, what could be the problem?"
+        "Level 3 (Linux)":         "What is the command to change file permissions in Linux?",
+        "Level 6 (AWS)":            "What is Amazon EC2 used for?",
+        "Level 7 (Docker)":         "What does a Dockerfile do?",
+        "Level 10 (Security)":      "Why should you not store AWS access keys in a public S3 bucket?",
+        "Level 11 (Troubleshooting)":"If a website returns a 502 error, what could be the problem?"
     }
     
     results = {}
     
     for topic, question in test_questions.items():
-        print(f"\n[Testing {topic}] Question: {question}")
+        print(f"\n[Testing {topic}]")
+        print(f"Question: {question}")
         
-        # 1. MEGHA generates an answer
+        # ── 1. MEGHA generates an answer ────────────────────────────
         prompt = f"Q: {question}\nA:"
         input_ids = megha_tok.encode(prompt)
-        
-        # If tokenizer returns empty or very short, pad it safely
-        if len(input_ids) == 0:
+        if not input_ids:
             input_ids = [0]
             
         x = torch.tensor([input_ids], dtype=torch.long).to(device)
         
-        # Get EOS token id so generation stops at sentence boundary
-        eos_id = megha_tok.get_eos_token_id()
-
-        # Generate tokens — stops at EOS or max_new_tokens
         with torch.no_grad():
             out_ids = megha_model.generate(
-                x, max_new_tokens=80, temperature=0.5, top_k=40, eos_token_id=eos_id
+                x, max_new_tokens=80, temperature=0.4, top_k=40,
+                eos_token_id=eos_id
             )
-                    
-        full_decoded = megha_tok.decode(out_ids[0].tolist())
-
-        # --- Bulletproof answer cleaning ---
-        # Remove prompt prefix
-        for prefix in [prompt, "Q :", "Q:"]:
-            if full_decoded.startswith(prefix):
-                full_decoded = full_decoded[len(prefix):]
-
-        # Strip EOS in all forms (proper token, broken subwords, spaced variants)
-        for eos_form in ["<|endoftext|>", "end oft ext", "< | endoftext | >", "endoftext"]:
-            full_decoded = full_decoded.replace(eos_form, " ")
-
-        # Cut off at next question (handles both spaced and unspaced Q:)
-        for stop_marker in ["Q :", "\nQ:", " Q:"]:
-            if stop_marker in full_decoded:
-                full_decoded = full_decoded.split(stop_marker)[0]
-
-        megha_answer = full_decoded.strip()
+        
+        # Decode ONLY the newly generated tokens (not the prompt)
+        prompt_len = len(input_ids)
+        new_token_ids = out_ids[0][prompt_len:].tolist()
+        
+        # Remove EOS token from the end if present
+        if eos_id is not None and new_token_ids and new_token_ids[-1] == eos_id:
+            new_token_ids = new_token_ids[:-1]
+        
+        megha_answer = megha_tok.decode(new_token_ids).strip()
+        
+        # Secondary cleanup: strip any repeated question text or A: prefix
+        # (handles Whitespace tokenizer spacing quirks)
+        for junk in ["A :", "A:", question]:
+            if megha_answer.startswith(junk):
+                megha_answer = megha_answer[len(junk):].strip()
+        
+        # Cut off if a new question starts
+        for stop in ["Q :", "\nQ:", " Q:"]:
+            if stop in megha_answer:
+                megha_answer = megha_answer.split(stop)[0].strip()
+        
+        # Collapse multiple spaces from Whitespace tokenizer decode
+        megha_answer = re.sub(r'\s+', ' ', megha_answer).strip()
+        
         if not megha_answer:
             megha_answer = "[No answer generated]"
             
         print(f"MEGHA's Answer: {megha_answer}")
         
-        # 2. Qwen grades the answer
-        grade_prompt = f"""You are grading an AI student's answer.
+        # ── 2. Qwen grades the answer ────────────────────────────────
+        grade_prompt = f"""You are grading an AI student's answer. Be generous — award partial marks for any relevant keywords or concepts.
+
 Question: {question}
+
 Student's Answer: {megha_answer}
-Rate the student's answer out of 100 based on accuracy and conceptual relevance. If partially correct or relevant keywords are used, award partial marks (e.g., 40 to 80). If completely wrong or total gibberish, award 0.
-Output ONLY the numeric score (e.g., 75)."""
+
+Scoring guide:
+- 0: Completely wrong, irrelevant, or gibberish
+- 20-40: Mentions 1-2 relevant keywords but mostly incorrect
+- 50-70: Partially correct, gets the main concept
+- 80-100: Correct and complete answer
+
+Output ONLY a single integer score between 0 and 100."""
         
         messages = [
-            {"role": "system", "content": "You are a strict grader. Output only a number between 0 and 100."},
+            {"role": "system", "content": "You are a fair grader. Be generous with partial credit. Output only a number."},
             {"role": "user", "content": grade_prompt}
         ]
         
         text = teacher_tok.apply_chat_template(messages, tokenize=False, add_generation_prompt=True)
         model_inputs = teacher_tok([text], return_tensors="pt").to(teacher.device)
         
-        generated_ids = teacher.generate(
-            **model_inputs,
-            max_new_tokens=10,
-            temperature=0.1
-        )
+        with torch.no_grad():
+            gen_ids = teacher.generate(
+                **model_inputs,
+                max_new_tokens=5,
+                do_sample=False       # greedy for consistent scoring
+            )
         
-        generated_ids = [
-            out[len(inp):] for inp, out in zip(model_inputs.input_ids, generated_ids)
-        ]
+        new_ids = [out[len(inp):] for inp, out in zip(model_inputs.input_ids, gen_ids)]
+        score_text = teacher_tok.batch_decode(new_ids, skip_special_tokens=True)[0].strip()
         
-        score_text = teacher_tok.batch_decode(generated_ids, skip_special_tokens=True)[0].strip()
-        # Ensure score is just digits
-        score_text = ''.join(filter(str.isdigit, score_text))
-        if not score_text: score_text = "0"
+        # Extract first number found
+        nums = re.findall(r'\d+', score_text)
+        score = str(min(int(nums[0]), 100)) if nums else "0"
             
-        print(f"Teacher's Grade: {score_text}/100")
-        results[topic] = score_text
+        print(f"Teacher's Grade: {score}/100")
+        results[topic] = score
         
     print("\n" + "="*40)
     print("MEGHA FINAL REPORT CARD")
     print("="*40)
+    total = 0
     for topic, score in results.items():
         print(f"{topic}: {score}%")
+        total += int(score)
+    avg = total // len(results)
+    print(f"{'='*40}")
+    print(f"Overall Average: {avg}%")
     print("="*40)
 
 if __name__ == "__main__":

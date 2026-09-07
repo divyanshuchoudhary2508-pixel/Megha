@@ -10,4 +10,4 @@ class MeghaConfig:
     dropout: float = 0.1
     batch_size: int = 4       # Small batch: works even with small per-level datasets
     learning_rate: float = 5e-4
-    epochs: int = 10          # 10 epochs for proper loss convergence
+    epochs: int = 20          # 20 epochs — ~1760 steps for proper convergence (target loss < 1.5)
