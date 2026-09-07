@@ -73,7 +73,7 @@ class MeghaModel(nn.Module):
             
         return logits, loss
         
-    def generate(self, idx, max_new_tokens, temperature=0.7, top_k=40):
+    def generate(self, idx, max_new_tokens, temperature=0.7, top_k=40, eos_token_id=None):
         for _ in range(max_new_tokens):
             idx_cond = idx[:, -self.config.max_seq_len:]
             logits, _ = self(idx_cond)
@@ -86,4 +86,9 @@ class MeghaModel(nn.Module):
             probs = torch.nn.functional.softmax(logits, dim=-1)
             idx_next = torch.multinomial(probs, num_samples=1)
             idx = torch.cat((idx, idx_next), dim=1)
+
+            # Stop when EOS token is generated
+            if eos_token_id is not None and idx_next.item() == eos_token_id:
+                break
+
         return idx

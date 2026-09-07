@@ -203,8 +203,29 @@ def generate_curriculum_dummy(level: int):
     ] * 100
     return simulated_response
 
+def is_good_example(text: str) -> bool:
+    """Filter out low-quality Q&A examples before training."""
+    if not text or len(text.strip()) < 30:
+        return False   # Too short — probably a parse fragment
+    if len(text) > 900:
+        return False   # Too long — probably multiple Q&As fused together
+    if text.count("Q:") > 2:
+        return False   # Multiple questions jammed in one entry
+    if text.count("A:") > 2:
+        return False   # Multiple answers jammed in one entry
+    if not ("Q:" in text and "A:" in text):
+        return False   # Not Q&A format at all
+    return True
+
 def save_curriculum(data, level):
     os.makedirs("data", exist_ok=True)
+
+    # Apply quality filter
+    before = len(data)
+    data = [item for item in data if is_good_example(item.get("text", ""))]
+    after = len(data)
+    print(f"Quality filter: {before} → {after} examples ({before - after} removed)")
+
     file_path = f"data/level_{level}_curriculum.json"
     with open(file_path, "w", encoding="utf-8") as f:
         json.dump(data, f, indent=4)

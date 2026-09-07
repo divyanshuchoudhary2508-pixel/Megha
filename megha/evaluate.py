@@ -64,16 +64,35 @@ def run_evaluation():
             
         x = torch.tensor([input_ids], dtype=torch.long).to(device)
         
-        # Generate tokens using temperature=0.5 (focused, not random)
+        # Get EOS token id so generation stops at sentence boundary
+        eos_id = megha_tok.get_eos_token_id()
+
+        # Generate tokens — stops at EOS or max_new_tokens
         with torch.no_grad():
-            out_ids = megha_model.generate(x, max_new_tokens=50, temperature=0.5, top_k=40)
+            out_ids = megha_model.generate(
+                x, max_new_tokens=80, temperature=0.5, top_k=40, eos_token_id=eos_id
+            )
                     
         full_decoded = megha_tok.decode(out_ids[0].tolist())
-        # Clean up the output string
-        megha_answer = full_decoded.replace(prompt, "").replace("<|endoftext|>", "").strip()
-        # Cut off at next question if it rambles
-        if "Q:" in megha_answer:
-            megha_answer = megha_answer.split("Q:")[0].strip()
+
+        # --- Bulletproof answer cleaning ---
+        # Remove prompt prefix
+        for prefix in [prompt, "Q :", "Q:"]:
+            if full_decoded.startswith(prefix):
+                full_decoded = full_decoded[len(prefix):]
+
+        # Strip EOS in all forms (proper token, broken subwords, spaced variants)
+        for eos_form in ["<|endoftext|>", "end oft ext", "< | endoftext | >", "endoftext"]:
+            full_decoded = full_decoded.replace(eos_form, " ")
+
+        # Cut off at next question (handles both spaced and unspaced Q:)
+        for stop_marker in ["Q :", "\nQ:", " Q:"]:
+            if stop_marker in full_decoded:
+                full_decoded = full_decoded.split(stop_marker)[0]
+
+        megha_answer = full_decoded.strip()
+        if not megha_answer:
+            megha_answer = "[No answer generated]"
             
         print(f"MEGHA's Answer: {megha_answer}")
         

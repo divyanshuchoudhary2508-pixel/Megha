@@ -13,9 +13,10 @@ class MeghaDataset(Dataset):
         self.tokenizer = tokenizer
         
         # EOS separator between each Q&A example
-        eos_tokens = self.tokenizer.encode("<|endoftext|>")
-        if not eos_tokens:
-            eos_tokens = [0]
+        # Look up via vocab to correctly handle it as a special token
+        vocab = tokenizer.tokenizer.get_vocab()
+        eos_id = vocab.get("<|endoftext|>", 0)
+        eos_tokens = [eos_id]
             
         all_tokens = []
         for text in all_texts:

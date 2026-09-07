@@ -12,8 +12,8 @@ class MeghaTokenizer:
         self.tokenizer = Tokenizer(BPE(unk_token="[UNK]"))
         self.tokenizer.pre_tokenizer = Whitespace()
         self.trainer = BpeTrainer(
-            vocab_size=config.vocab_size, 
-            special_tokens=["[UNK]", "[PAD]", "[CLS]", "[SEP]", "[MASK]"]
+            vocab_size=config.vocab_size,
+            special_tokens=["[UNK]", "[PAD]", "[CLS]", "[SEP]", "[MASK]", "<|endoftext|>"]
         )
         
     def train_from_iterator(self, iterator):
@@ -30,6 +30,11 @@ class MeghaTokenizer:
         
     def decode(self, ids):
         return self.tokenizer.decode(ids)
+
+    def get_eos_token_id(self):
+        """Return the dedicated token ID for <|endoftext|>."""
+        vocab = self.tokenizer.get_vocab()
+        return vocab.get("<|endoftext|>", None)
 
 if __name__ == "__main__":
     # Script to train the tokenizer on generated curriculum data
