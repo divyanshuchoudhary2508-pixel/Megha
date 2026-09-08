@@ -73,11 +73,19 @@ class MeghaModel(nn.Module):
             
         return logits, loss
         
-    def generate(self, idx, max_new_tokens, temperature=0.7, top_k=40, eos_token_id=None):
+    def generate(self, idx, max_new_tokens, temperature=0.7, top_k=40, eos_token_id=None, repetition_penalty=1.2):
         for _ in range(max_new_tokens):
             idx_cond = idx[:, -self.config.max_seq_len:]
             logits, _ = self(idx_cond)
             logits = logits[:, -1, :] / max(temperature, 1e-5)
+
+            # Apply repetition penalty to previously generated tokens
+            if repetition_penalty != 1.0:
+                for token_id in set(idx[0].tolist()):
+                    if logits[0, token_id] > 0:
+                        logits[0, token_id] /= repetition_penalty
+                    else:
+                        logits[0, token_id] *= repetition_penalty
             
             if top_k is not None and top_k > 0:
                 v, _ = torch.topk(logits, min(top_k, logits.size(-1)))
