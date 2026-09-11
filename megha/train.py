@@ -36,45 +36,59 @@ def train_all():
         print("ERROR: Dataloader has 0 batches. Check your data files.")
         return
     
+    grad_accum_steps = getattr(config, 'grad_accum_steps', 2)
+    warmup_steps = getattr(config, 'warmup_steps', 150)
+    total_steps = (total_batches // grad_accum_steps) * config.epochs
+    
     print(f"\nBatches per epoch: {total_batches}")
+    print(f"Gradient Accumulation Steps: {grad_accum_steps}")
     print(f"Epochs: {config.epochs}")
-    print(f"Total training steps: {total_batches * config.epochs}\n")
+    print(f"Total optimization steps: {total_steps}")
+    print(f"Warmup steps: {warmup_steps}\n")
     
     optimizer = optim.AdamW(model.parameters(), lr=config.learning_rate, weight_decay=0.01)
     
-    # Cosine LR scheduler for smooth convergence
-    scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(
-        optimizer,
-        T_max=total_batches * config.epochs
-    )
+    def get_lr(step):
+        if step < warmup_steps:
+            return float(step + 1) / float(max(1, warmup_steps))
+        progress = float(step - warmup_steps) / float(max(1, total_steps - warmup_steps))
+        return 0.5 * (1.0 + math.cos(math.pi * progress))
+        
+    import math
+    scheduler = torch.optim.lr_scheduler.LambdaLR(optimizer, lr_lambda=get_lr)
     
     model.train()
     global_step = 0
+    optimizer.zero_grad()
+    
     for epoch in range(config.epochs):
         print(f"\n--- Epoch {epoch+1}/{config.epochs} ---")
         epoch_loss = 0.0
+        accum_loss = 0.0
         
         for step, (x, y) in enumerate(dataloader):
             t0 = time.time()
-            
             x, y = x.to(device), y.to(device)
             
-            optimizer.zero_grad()
             logits, loss = model(x, targets=y)
+            loss = loss / grad_accum_steps
             loss.backward()
+            accum_loss += loss.item() * grad_accum_steps
             
-            # Gradient clipping for stability
-            torch.nn.utils.clip_grad_norm_(model.parameters(), 1.0)
-            
-            optimizer.step()
-            scheduler.step()
-            
-            dt = time.time() - t0
-            epoch_loss += loss.item()
-            global_step += 1
-            
-            if step % 20 == 0 or step == total_batches - 1:
-                print(f"Step {global_step} | Loss: {loss.item():.4f} | LR: {scheduler.get_last_lr()[0]:.2e} | Time: {dt*1000:.1f}ms")
+            if (step + 1) % grad_accum_steps == 0 or (step + 1) == total_batches:
+                torch.nn.utils.clip_grad_norm_(model.parameters(), 1.0)
+                optimizer.step()
+                scheduler.step()
+                optimizer.zero_grad()
+                global_step += 1
+                
+                dt = time.time() - t0
+                if global_step % 20 == 0 or (step + 1) == total_batches:
+                    curr_lr = optimizer.param_groups[0]['lr']
+                    print(f"Step {global_step}/{total_steps} | Loss: {accum_loss:.4f} | LR: {curr_lr:.2e} | Time: {dt*1000:.1f}ms")
+                accum_loss = 0.0
+                
+            epoch_loss += loss.item() * grad_accum_steps
         
         avg_loss = epoch_loss / total_batches
         print(f"Epoch {epoch+1} avg loss: {avg_loss:.4f}")

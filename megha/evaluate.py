@@ -43,13 +43,18 @@ def run_evaluation():
         device_map="auto"
     )
     
-    # 5 questions covering the curriculum
+    # 10 test questions covering key curriculum levels
     test_questions = {
+        "Level 1 (OS Basics)":      "What is the primary role of an operating system?",
         "Level 3 (Linux)":         "What is the command to change file permissions in Linux?",
+        "Level 4 (Networking)":    "What is the purpose of DNS in computer networking?",
+        "Level 5 (Databases)":     "What is the difference between a primary key and a foreign key?",
         "Level 6 (AWS)":            "What is Amazon EC2 used for?",
         "Level 7 (Docker)":         "What does a Dockerfile do?",
+        "Level 8 (Kubernetes)":     "What is a Kubernetes Pod?",
         "Level 10 (Security)":      "Why should you not store AWS access keys in a public S3 bucket?",
-        "Level 11 (Troubleshooting)":"If a website returns a 502 error, what could be the problem?"
+        "Level 11 (Troubleshooting)":"If a website returns a 502 error, what could be the problem?",
+        "Level 14 (CloudOps Incidents)":"How do you approach a multi-step CloudOps incident investigation?"
     }
     
     results = {}

@@ -115,7 +115,6 @@ Output nothing but the JSON array. Do not include markdown blocks."""
 
 def generate_curriculum_real(level: int):
     print(f"Loading Qwen model for Level {level} curriculum generation...")
-    # Upgraded Teacher to 3 Billion Parameters for much smarter data generation
     model_id = "Qwen/Qwen2.5-3B-Instruct"  
     
     tokenizer = AutoTokenizer.from_pretrained(model_id)
@@ -125,69 +124,83 @@ def generate_curriculum_real(level: int):
         device_map="auto"
     )
     
-    prompt = LEVEL_PROMPTS.get(level, LEVEL_PROMPTS[0])
-    
-    messages = [
-        {"role": "system", "content": "You are a highly structured data generation AI."},
-        {"role": "user", "content": prompt}
-    ]
-    
-    text = tokenizer.apply_chat_template(messages, tokenize=False, add_generation_prompt=True)
-    model_inputs = tokenizer([text], return_tensors="pt").to(model.device)
+    base_prompt = LEVEL_PROMPTS.get(level, LEVEL_PROMPTS[0])
     
     all_data = []
-    target_examples = 400   # 400 Q&A pairs per level = 6000 total across 15 levels
-    batch_size = 50         # Qwen generates 50 at a time (8 batches per level)
+    target_examples = 250   # 250 Q&A pairs per level = ~3,750 total across 15 levels
+    max_batches = 12
     
     print(f"Teacher is generating {target_examples} examples for Level {level} (in batches)...")
     
-    iterations = target_examples // batch_size
-    for i in range(iterations):
-        print(f"Generating batch {i+1}/{iterations}...")
+    sub_seeds = [
+        "Focus on fundamental definitions, core concepts, and standard syntax.",
+        "Focus on specific CLI flags, parameter configurations, and file paths.",
+        "Focus on practical real-world scenarios, common pitfalls, and edge cases.",
+        "Focus on security considerations, permissions, access controls, and best practices.",
+        "Focus on error codes, log analysis, troubleshooting steps, and recovery.",
+        "Focus on performance optimization, scaling, resource allocation, and automation."
+    ]
+    
+    batch_count = 0
+    while len(all_data) < target_examples and batch_count < max_batches:
+        batch_count += 1
+        sub_seed = sub_seeds[(batch_count - 1) % len(sub_seeds)]
+        
+        dynamic_prompt = f"{base_prompt}\n\nBatch {batch_count} instructions: {sub_seed}\nGenerate 30 unique Q&A examples. Output format MUST be:\nQ: <question>\nA: <answer>\n\nFormat all examples line-by-line as above."
+        
+        messages = [
+            {"role": "system", "content": "You are an expert AI teacher generating curriculum dataset examples."},
+            {"role": "user", "content": dynamic_prompt}
+        ]
+        
+        text = tokenizer.apply_chat_template(messages, tokenize=False, add_generation_prompt=True)
+        model_inputs = tokenizer([text], return_tensors="pt").to(model.device)
+        
         try:
-            generated_ids = model.generate(
-                **model_inputs,
-                max_new_tokens=2048,
-                temperature=0.8,
-                do_sample=True,
-                pad_token_id=tokenizer.eos_token_id
-            )
+            with torch.no_grad():
+                generated_ids = model.generate(
+                    **model_inputs,
+                    max_new_tokens=2048,
+                    temperature=0.85,
+                    do_sample=True,
+                    pad_token_id=tokenizer.eos_token_id
+                )
             
-            generated_ids = [
+            gen_tokens = [
                 output_ids[len(input_ids):] for input_ids, output_ids in zip(model_inputs.input_ids, generated_ids)
             ]
+            response = tokenizer.batch_decode(gen_tokens, skip_special_tokens=True)[0].strip()
             
-            response = tokenizer.batch_decode(generated_ids, skip_special_tokens=True)[0]
+            # Primary parse: Regex extraction of Q: ... A: ... blocks
+            import re
+            qa_blocks = re.findall(r'(Q:\s*.*?\n\s*A:\s*.*?)(?=\n\s*Q:|\Z)', response, re.DOTALL)
             
-            # Parse JSON
-            if "```json" in response:
-                response = response.split("```json")[1].split("```")[0]
-            elif "```" in response:
-                response = response.split("```")[1].split("```")[0]
-                
-            clean_response = response.strip()
-            data = None
-            try:
-                data = json.loads(clean_response, strict=False)
-            except Exception:
-                # Fallback: Robust regex extraction if LLM introduces unescaped quotes/newlines
-                import re
-                matches = re.findall(r'"text"\s*:\s*"(.*?)"', clean_response, re.DOTALL)
-                if matches:
-                    data = [{"text": m.replace('\\n', '\n').strip()} for m in matches]
-                else:
-                    raise
-            
-            # Ensure it's a list
-            if isinstance(data, list):
-                all_data.extend([d for d in data if isinstance(d, dict) and "text" in d and d["text"]])
-            elif isinstance(data, dict) and "text" in data:
-                all_data.append(data)
-                
-            print(f"Current total for Level {level}: {len(all_data)} examples.")
+            parsed_count = 0
+            for block in qa_blocks:
+                clean_block = block.strip()
+                if "Q:" in clean_block and "A:" in clean_block and len(clean_block) >= 30:
+                    all_data.append({"text": clean_block})
+                    parsed_count += 1
+                    
+            # Secondary fallback: If regex found nothing, try JSON parse
+            if parsed_count == 0:
+                if "```json" in response:
+                    response = response.split("```json")[1].split("```")[0]
+                elif "```" in response:
+                    response = response.split("```")[1].split("```")[0]
+                try:
+                    data = json.loads(response.strip(), strict=False)
+                    if isinstance(data, list):
+                        for d in data:
+                            if isinstance(d, dict) and "text" in d:
+                                all_data.append(d)
+                except Exception:
+                    pass
+                    
+            print(f"Batch {batch_count} generated {parsed_count} examples. Total for Level {level}: {len(all_data)}/{target_examples}")
             
         except Exception as e:
-            print(f"Batch {i+1} failed to parse or generate, skipping. Error: {e}")
+            print(f"Batch {batch_count} generation error: {e}")
             
     print(f"Successfully generated {len(all_data)} high-quality examples for Level {level}!")
     return all_data

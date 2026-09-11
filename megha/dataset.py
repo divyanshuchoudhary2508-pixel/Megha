@@ -12,36 +12,52 @@ class MeghaDataset(Dataset):
         self.config = config
         self.tokenizer = tokenizer
         
-        # EOS separator between each Q&A example
-        # Look up via vocab to correctly handle it as a special token
         vocab = tokenizer.tokenizer.get_vocab()
         eos_id = vocab.get("<|endoftext|>", 0)
-        eos_tokens = [eos_id]
-            
-        all_tokens = []
+        
+        all_x_tokens = []
+        all_y_tokens = []
+        
         for text in all_texts:
-            if not text:
+            if not text or "Q:" not in text or "A:" not in text:
                 continue
-            tokens = self.tokenizer.encode(text)
-            if tokens:
-                all_tokens.extend(tokens)
-                all_tokens.extend(eos_tokens)
+            parts = text.split("A:", 1)
+            prompt_str = parts[0] + "A:"
+            answer_str = parts[1]
             
-        # Pad if still too small
-        while len(all_tokens) <= self.config.max_seq_len + 1:
-            all_tokens.extend(eos_tokens * 10)
+            prompt_ids = self.tokenizer.encode(prompt_str)
+            answer_ids = self.tokenizer.encode(answer_str)
+            if not answer_ids:
+                continue
+            answer_ids.append(eos_id)
             
-        self.data = torch.tensor(all_tokens, dtype=torch.long)
-        # 50% stride: good balance between coverage and overfitting prevention
+            # Input: prompt + answer
+            x_seq = prompt_ids + answer_ids
+            # Target: -100 for prompt tokens (no loss gradient), answer_ids for answer tokens
+            y_seq = [-100] * len(prompt_ids) + answer_ids
+            
+            all_x_tokens.extend(x_seq)
+            all_y_tokens.extend(y_seq)
+            
+        # Pad with EOS / -100 if sequence is short
+        min_len = self.config.max_seq_len + 1
+        while len(all_x_tokens) < min_len:
+            all_x_tokens.extend([eos_id] * 20)
+            all_y_tokens.extend([-100] * 20)
+            
+        self.x_data = torch.tensor(all_x_tokens, dtype=torch.long)
+        self.y_data = torch.tensor(all_y_tokens, dtype=torch.long)
+        
         self.stride = max(1, self.config.max_seq_len // 2)
         
     def __len__(self):
-        return max(1, (len(self.data) - self.config.max_seq_len - 1) // self.stride)
+        return max(1, (len(self.x_data) - self.config.max_seq_len - 1) // self.stride)
         
     def __getitem__(self, idx):
         start_idx = idx * self.stride
-        x = self.data[start_idx : start_idx + self.config.max_seq_len]
-        y = self.data[start_idx + 1 : start_idx + self.config.max_seq_len + 1]
+        x = self.x_data[start_idx : start_idx + self.config.max_seq_len]
+        # Shift target by 1 token for standard next-token prediction
+        y = self.y_data[start_idx + 1 : start_idx + self.config.max_seq_len + 1]
         return x, y
 
 

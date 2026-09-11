@@ -3,14 +3,16 @@ import json
 from tokenizers import Tokenizer
 from tokenizers.models import BPE
 from tokenizers.trainers import BpeTrainer
-from tokenizers.pre_tokenizers import Whitespace
+from tokenizers.pre_tokenizers import ByteLevel
+from tokenizers.decoders import ByteLevel as ByteLevelDecoder
 from .config import MeghaConfig
 
 class MeghaTokenizer:
     def __init__(self, config: MeghaConfig):
         self.config = config
         self.tokenizer = Tokenizer(BPE(unk_token="[UNK]"))
-        self.tokenizer.pre_tokenizer = Whitespace()
+        self.tokenizer.pre_tokenizer = ByteLevel(add_prefix_space=False)
+        self.tokenizer.decoder = ByteLevelDecoder()
         self.trainer = BpeTrainer(
             vocab_size=config.vocab_size,
             special_tokens=["[UNK]", "[PAD]", "[CLS]", "[SEP]", "[MASK]", "<|endoftext|>"]
@@ -34,7 +36,7 @@ class MeghaTokenizer:
     def get_eos_token_id(self):
         """Return the dedicated token ID for <|endoftext|>."""
         vocab = self.tokenizer.get_vocab()
-        return vocab.get("<|endoftext|>", None)
+        return vocab.get("<|endoftext|>", 0)
 
 if __name__ == "__main__":
     # Script to train the tokenizer on generated curriculum data

@@ -1,35 +1,66 @@
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
 from .config import MeghaConfig
+
+class RMSNorm(nn.Module):
+    def __init__(self, dim: int, eps: float = 1e-6):
+        super().__init__()
+        self.eps = eps
+        self.weight = nn.Parameter(torch.ones(dim))
+
+    def forward(self, x):
+        var = torch.mean(x ** 2, dim=-1, keepdim=True)
+        return x * torch.rsqrt(var + self.eps) * self.weight
+
+class SwiGLU(nn.Module):
+    def __init__(self, d_model: int, hidden_dim: int, dropout: float = 0.1):
+        super().__init__()
+        self.w1 = nn.Linear(d_model, hidden_dim, bias=False)
+        self.w2 = nn.Linear(hidden_dim, d_model, bias=False)
+        self.w3 = nn.Linear(d_model, hidden_dim, bias=False)
+        self.dropout = nn.Dropout(dropout)
+
+    def forward(self, x):
+        return self.dropout(self.w2(F.silu(self.w1(x)) * self.w3(x)))
+
+class MeghaAttention(nn.Module):
+    def __init__(self, config: MeghaConfig):
+        super().__init__()
+        self.n_heads = config.n_heads
+        self.head_dim = config.d_model // config.n_heads
+        self.d_model = config.d_model
+        
+        self.qkv = nn.Linear(config.d_model, 3 * config.d_model, bias=False)
+        self.out_proj = nn.Linear(config.d_model, config.d_model, bias=False)
+        self.dropout_p = config.dropout
+
+    def forward(self, x):
+        B, T, C = x.shape
+        qkv = self.qkv(x).reshape(B, T, 3, self.n_heads, self.head_dim).permute(2, 0, 3, 1, 4)
+        q, k, v = qkv[0], qkv[1], qkv[2]
+        
+        # Fast PyTorch Scaled Dot Product Attention with automatic Causal Mask
+        out = F.scaled_dot_product_attention(
+            q, k, v, 
+            is_causal=True, 
+            dropout_p=self.dropout_p if self.training else 0.0
+        )
+        out = out.transpose(1, 2).reshape(B, T, C)
+        return self.out_proj(out)
 
 class MeghaBlock(nn.Module):
     def __init__(self, config: MeghaConfig):
         super().__init__()
-        self.ln_1 = nn.LayerNorm(config.d_model)
-        self.attn = nn.MultiheadAttention(
-            embed_dim=config.d_model, 
-            num_heads=config.n_heads, 
-            dropout=config.dropout,
-            batch_first=True
-        )
-        self.ln_2 = nn.LayerNorm(config.d_model)
-        self.mlp = nn.Sequential(
-            nn.Linear(config.d_model, 4 * config.d_model),
-            nn.GELU(),
-            nn.Linear(4 * config.d_model, config.d_model),
-            nn.Dropout(config.dropout)
-        )
+        self.norm1 = RMSNorm(config.d_model)
+        self.attn = MeghaAttention(config)
+        self.norm2 = RMSNorm(config.d_model)
+        hidden_dim = int(4 * config.d_model * 2 / 3)   # SwiGLU standard dimension scaling
+        self.mlp = SwiGLU(config.d_model, hidden_dim, dropout=config.dropout)
 
-    def forward(self, x, attention_mask=None):
-        B, T, C = x.shape
-        attn_mask = nn.Transformer.generate_square_subsequent_mask(T, device=x.device)
-        
-        attn_out, _ = self.attn(
-            self.ln_1(x), self.ln_1(x), self.ln_1(x), 
-            attn_mask=attn_mask, need_weights=False, is_causal=True
-        )
-        x = x + attn_out
-        x = x + self.mlp(self.ln_2(x))
+    def forward(self, x):
+        x = x + self.attn(self.norm1(x))
+        x = x + self.mlp(self.norm2(x))
         return x
 
 class MeghaModel(nn.Module):
@@ -40,8 +71,8 @@ class MeghaModel(nn.Module):
         self.token_emb = nn.Embedding(config.vocab_size, config.d_model)
         self.pos_emb = nn.Embedding(config.max_seq_len, config.d_model)
         
-        self.blocks = nn.Sequential(*[MeghaBlock(config) for _ in range(config.n_layers)])
-        self.ln_f = nn.LayerNorm(config.d_model)
+        self.blocks = nn.ModuleList([MeghaBlock(config) for _ in range(config.n_layers)])
+        self.norm_f = RMSNorm(config.d_model)
         self.lm_head = nn.Linear(config.d_model, config.vocab_size, bias=False)
         
         # Weight tying
@@ -62,13 +93,15 @@ class MeghaModel(nn.Module):
         pos = torch.arange(0, T, dtype=torch.long, device=idx.device)
         
         x = self.token_emb(idx) + self.pos_emb(pos)
-        x = self.blocks(x)
-        x = self.ln_f(x)
+        for block in self.blocks:
+            x = block(x)
+        x = self.norm_f(x)
         logits = self.lm_head(x)
         
         loss = None
         if targets is not None:
-            loss_fct = nn.CrossEntropyLoss()
+            # Ignore -100 index so loss is ONLY calculated on answer tokens!
+            loss_fct = nn.CrossEntropyLoss(ignore_index=-100)
             loss = loss_fct(logits.view(-1, self.config.vocab_size), targets.view(-1))
             
         return logits, loss
@@ -79,7 +112,6 @@ class MeghaModel(nn.Module):
             logits, _ = self(idx_cond)
             logits = logits[:, -1, :] / max(temperature, 1e-5)
 
-            # Apply repetition penalty to previously generated tokens
             if repetition_penalty != 1.0:
                 for token_id in set(idx[0].tolist()):
                     if logits[0, token_id] > 0:
@@ -95,7 +127,6 @@ class MeghaModel(nn.Module):
             idx_next = torch.multinomial(probs, num_samples=1)
             idx = torch.cat((idx, idx_next), dim=1)
 
-            # Stop when EOS token is generated
             if eos_token_id is not None and idx_next.item() == eos_token_id:
                 break
 
