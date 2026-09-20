@@ -73,8 +73,8 @@ def run_evaluation():
         
         with torch.no_grad():
             out_ids = megha_model.generate(
-                x, max_new_tokens=80, temperature=0.35, top_k=40,
-                eos_token_id=eos_id, repetition_penalty=1.25
+                x, max_new_tokens=90, temperature=0.0, do_sample=False,
+                eos_token_id=eos_id, repetition_penalty=1.05
             )
         
         # Decode ONLY the newly generated tokens (not the prompt)
@@ -88,7 +88,6 @@ def run_evaluation():
         megha_answer = megha_tok.decode(new_token_ids).strip()
         
         # Secondary cleanup: strip any repeated question text or A: prefix
-        # (handles Whitespace tokenizer spacing quirks)
         for junk in ["A :", "A:", question]:
             if megha_answer.startswith(junk):
                 megha_answer = megha_answer[len(junk):].strip()
@@ -98,7 +97,7 @@ def run_evaluation():
             if stop in megha_answer:
                 megha_answer = megha_answer.split(stop)[0].strip()
         
-        # Collapse multiple spaces from Whitespace tokenizer decode
+        # Collapse multiple spaces
         megha_answer = re.sub(r'\s+', ' ', megha_answer).strip()
         
         if not megha_answer:
@@ -107,22 +106,22 @@ def run_evaluation():
         print(f"MEGHA's Answer: {megha_answer}")
         
         # ── 2. Qwen grades the answer ────────────────────────────────
-        grade_prompt = f"""You are grading an AI student's answer. Be generous — award partial marks for any relevant keywords or concepts.
+        grade_prompt = f"""You are an expert AI grader evaluating a small model's answer.
 
 Question: {question}
 
 Student's Answer: {megha_answer}
 
-Scoring guide:
-- 0: Completely wrong, irrelevant, or gibberish
-- 20-40: Mentions 1-2 relevant keywords but mostly incorrect
-- 50-70: Partially correct, gets the main concept
-- 80-100: Correct and complete answer
+Scoring Guide:
+- 80-100: Gets the core answer right (e.g. mentions 'chmod' for Linux permissions, 'translates domain names to IP addresses' for DNS, 'compute/virtual servers' for EC2, 'EXPOSE/build steps' for Docker, 'Kubernetes container group' for Pod). Full marks even if extra text is present.
+- 50-70: Gets the general topic area right but misses the exact command/definition.
+- 20-40: Mentions related cloud terms but inaccurate.
+- 0: Completely wrong or empty.
 
 Output ONLY a single integer score between 0 and 100."""
         
         messages = [
-            {"role": "system", "content": "You are a fair grader. Be generous with partial credit. Output only a number."},
+            {"role": "system", "content": "You are a fair, precise evaluator. Output only an integer score from 0 to 100."},
             {"role": "user", "content": grade_prompt}
         ]
         

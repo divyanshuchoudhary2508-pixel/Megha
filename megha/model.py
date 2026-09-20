@@ -106,11 +106,11 @@ class MeghaModel(nn.Module):
             
         return logits, loss
         
-    def generate(self, idx, max_new_tokens, temperature=0.7, top_k=40, eos_token_id=None, repetition_penalty=1.2):
+    def generate(self, idx, max_new_tokens, temperature=0.0, top_k=40, eos_token_id=None, repetition_penalty=1.05, do_sample=False):
         for _ in range(max_new_tokens):
             idx_cond = idx[:, -self.config.max_seq_len:]
             logits, _ = self(idx_cond)
-            logits = logits[:, -1, :] / max(temperature, 1e-5)
+            logits = logits[:, -1, :]
 
             if repetition_penalty != 1.0:
                 for token_id in set(idx[0].tolist()):
@@ -119,12 +119,17 @@ class MeghaModel(nn.Module):
                     else:
                         logits[0, token_id] *= repetition_penalty
             
-            if top_k is not None and top_k > 0:
-                v, _ = torch.topk(logits, min(top_k, logits.size(-1)))
-                logits[logits < v[:, [-1]]] = -float('Inf')
+            if not do_sample or temperature <= 0.0:
+                # Greedy Search: pick exact highest probability token
+                idx_next = torch.argmax(logits, dim=-1, keepdim=True)
+            else:
+                logits = logits / max(temperature, 1e-5)
+                if top_k is not None and top_k > 0:
+                    v, _ = torch.topk(logits, min(top_k, logits.size(-1)))
+                    logits[logits < v[:, [-1]]] = -float('Inf')
+                probs = torch.nn.functional.softmax(logits, dim=-1)
+                idx_next = torch.multinomial(probs, num_samples=1)
                 
-            probs = torch.nn.functional.softmax(logits, dim=-1)
-            idx_next = torch.multinomial(probs, num_samples=1)
             idx = torch.cat((idx, idx_next), dim=1)
 
             if eos_token_id is not None and idx_next.item() == eos_token_id:
