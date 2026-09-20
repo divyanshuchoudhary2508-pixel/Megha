@@ -175,14 +175,19 @@ def generate_curriculum_real(level: int):
             import re
             qa_blocks = re.findall(r'(Q:\s*.*?\n\s*A:\s*.*?)(?=\n\s*Q:|\Z)', response, re.DOTALL)
             
+            # Secondary parse: Split by Q: if regex is too strict
+            if not qa_blocks and "Q:" in response:
+                raw_parts = response.split("Q:")
+                qa_blocks = ["Q:" + p.strip() for p in raw_parts if "A:" in p and len(p.strip()) > 20]
+
             parsed_count = 0
             for block in qa_blocks:
                 clean_block = block.strip()
-                if "Q:" in clean_block and "A:" in clean_block and len(clean_block) >= 30:
+                if "Q:" in clean_block and "A:" in clean_block and len(clean_block) >= 20:
                     all_data.append({"text": clean_block})
                     parsed_count += 1
                     
-            # Secondary fallback: If regex found nothing, try JSON parse
+            # Tertiary fallback: JSON parse
             if parsed_count == 0:
                 if "```json" in response:
                     response = response.split("```json")[1].split("```")[0]
@@ -208,26 +213,18 @@ def generate_curriculum_real(level: int):
 def generate_curriculum_dummy(level: int):
     print(f"Generating DUMMY curriculum for Level {level} (Local PC Test)...")
     simulated_response = [
-        {"text": "The computer is on."},
-        {"text": "A network connects devices."},
-        {"text": "She types on the keyboard."},
-        {"text": "Data is stored in memory."},
-        {"text": "He clicks the mouse."}
+        {"text": "Q: What is the OS?\nA: The OS manages hardware and software resources."}
     ] * 100
     return simulated_response
 
 def is_good_example(text: str) -> bool:
     """Filter out low-quality Q&A examples before training."""
-    if not text or len(text.strip()) < 30:
-        return False   # Too short — probably a parse fragment
-    if len(text) > 900:
-        return False   # Too long — probably multiple Q&As fused together
-    if text.count("Q:") > 2:
-        return False   # Multiple questions jammed in one entry
-    if text.count("A:") > 2:
-        return False   # Multiple answers jammed in one entry
-    if not ("Q:" in text and "A:" in text):
-        return False   # Not Q&A format at all
+    if not text or len(text.strip()) < 20:
+        return False   # Too short — fragment
+    if len(text) > 1800:
+        return False   # Too long — outlier
+    if "Q:" not in text or "A:" not in text:
+        return False   # Not Q&A format
     return True
 
 def save_curriculum(data, level):
