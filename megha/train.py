@@ -46,7 +46,7 @@ def train_all():
     print(f"Total optimization steps: {total_steps}")
     print(f"Warmup steps: {warmup_steps}\n")
     
-    optimizer = optim.AdamW(model.parameters(), lr=config.learning_rate, weight_decay=0.01)
+    optimizer = optim.AdamW(model.parameters(), lr=config.learning_rate, weight_decay=0.05)
     
     def get_lr(step):
         if step < warmup_steps:

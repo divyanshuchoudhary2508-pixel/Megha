@@ -73,8 +73,8 @@ def run_evaluation():
         
         with torch.no_grad():
             out_ids = megha_model.generate(
-                x, max_new_tokens=90, temperature=0.0, do_sample=False,
-                eos_token_id=eos_id, repetition_penalty=1.05
+                x, max_new_tokens=90, temperature=0.35, top_k=40, do_sample=True,
+                eos_token_id=eos_id, repetition_penalty=1.15
             )
         
         # Decode ONLY the newly generated tokens (not the prompt)
