@@ -15,7 +15,7 @@ class MeghaTokenizer:
         self.tokenizer.decoder = ByteLevelDecoder()
         self.trainer = BpeTrainer(
             vocab_size=config.vocab_size,
-            special_tokens=["[UNK]", "[PAD]", "[CLS]", "[SEP]", "[MASK]", "<|endoftext|>"]
+            special_tokens=["[UNK]", "[PAD]", "[CLS]", "[SEP]", "[MASK]", "<|endoftext|>", "<|im_start|>", "<|im_end|>"]
         )
         
     def train_from_iterator(self, iterator):

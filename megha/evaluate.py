@@ -64,7 +64,7 @@ def run_evaluation():
         print(f"Question: {question}")
         
         # ── 1. MEGHA generates an answer ────────────────────────────
-        prompt = f"Q: {question}\nA:"
+        prompt = f"<|im_start|>user\n{question}<|im_end|>\n<|im_start|>assistant\n"
         input_ids = megha_tok.encode(prompt)
         if not input_ids:
             input_ids = [0]

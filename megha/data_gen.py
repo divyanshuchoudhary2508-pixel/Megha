@@ -127,10 +127,10 @@ def generate_curriculum_real(level: int):
     base_prompt = LEVEL_PROMPTS.get(level, LEVEL_PROMPTS[0])
     
     all_data = []
-    target_examples = 250   # 250 Q&A pairs per level = ~3,750 total across 15 levels
-    max_batches = 12
+    target_examples = 2000   # 2,000 Q&A pairs per level = 30,000 total across 15 levels (~1.5M tokens)
+    max_batches = 60
     
-    print(f"Teacher is generating {target_examples} examples for Level {level} (in batches)...")
+    print(f"Teacher is generating {target_examples} ChatML examples for Level {level} (in batches)...")
     
     sub_seeds = [
         "Focus on fundamental definitions, core concepts, and standard syntax.",
@@ -146,7 +146,7 @@ def generate_curriculum_real(level: int):
         batch_count += 1
         sub_seed = sub_seeds[(batch_count - 1) % len(sub_seeds)]
         
-        dynamic_prompt = f"{base_prompt}\n\nBatch {batch_count} instructions: {sub_seed}\nGenerate 30 unique Q&A examples. Output format MUST be:\nQ: <question>\nA: <answer>\n\nFormat all examples line-by-line as above."
+        dynamic_prompt = f"{base_prompt}\n\nBatch {batch_count} instructions: {sub_seed}\nGenerate 35 unique Q&A examples. Output format MUST be:\nQ: <question>\nA: <answer>\n\nFormat all examples line-by-line as above."
         
         messages = [
             {"role": "system", "content": "You are an expert AI teacher generating curriculum dataset examples."},
@@ -171,11 +171,8 @@ def generate_curriculum_real(level: int):
             ]
             response = tokenizer.batch_decode(gen_tokens, skip_special_tokens=True)[0].strip()
             
-            # Primary parse: Regex extraction of Q: ... A: ... blocks
             import re
             qa_blocks = re.findall(r'(Q:\s*.*?\n\s*A:\s*.*?)(?=\n\s*Q:|\Z)', response, re.DOTALL)
-            
-            # Secondary parse: Split by Q: if regex is too strict
             if not qa_blocks and "Q:" in response:
                 raw_parts = response.split("Q:")
                 qa_blocks = ["Q:" + p.strip() for p in raw_parts if "A:" in p and len(p.strip()) > 20]
@@ -184,24 +181,14 @@ def generate_curriculum_real(level: int):
             for block in qa_blocks:
                 clean_block = block.strip()
                 if "Q:" in clean_block and "A:" in clean_block and len(clean_block) >= 20:
-                    all_data.append({"text": clean_block})
-                    parsed_count += 1
-                    
-            # Tertiary fallback: JSON parse
-            if parsed_count == 0:
-                if "```json" in response:
-                    response = response.split("```json")[1].split("```")[0]
-                elif "```" in response:
-                    response = response.split("```")[1].split("```")[0]
-                try:
-                    data = json.loads(response.strip(), strict=False)
-                    if isinstance(data, list):
-                        for d in data:
-                            if isinstance(d, dict) and "text" in d:
-                                all_data.append(d)
-                except Exception:
-                    pass
-                    
+                    parts = clean_block.split("A:", 1)
+                    q_text = parts[0].replace("Q:", "").strip()
+                    a_text = parts[1].strip()
+                    if q_text and a_text:
+                        chatml_format = f"<|im_start|>user\n{q_text}<|im_end|>\n<|im_start|>assistant\n{a_text}<|im_end|>"
+                        all_data.append({"text": chatml_format})
+                        parsed_count += 1
+                        
             print(f"Batch {batch_count} generated {parsed_count} examples. Total for Level {level}: {len(all_data)}/{target_examples}")
             
         except Exception as e:
@@ -213,19 +200,19 @@ def generate_curriculum_real(level: int):
 def generate_curriculum_dummy(level: int):
     print(f"Generating DUMMY curriculum for Level {level} (Local PC Test)...")
     simulated_response = [
-        {"text": "Q: What is the OS?\nA: The OS manages hardware and software resources."}
+        {"text": "<|im_start|>user\nWhat is the OS?<|im_end|>\n<|im_start|>assistant\nThe OS manages hardware and software resources.<|im_end|>"}
     ] * 100
     return simulated_response
 
 def is_good_example(text: str) -> bool:
     """Filter out low-quality Q&A examples before training."""
     if not text or len(text.strip()) < 20:
-        return False   # Too short — fragment
-    if len(text) > 1800:
-        return False   # Too long — outlier
-    if "Q:" not in text or "A:" not in text:
-        return False   # Not Q&A format
-    return True
+        return False
+    if len(text) > 2000:
+        return False
+    if ("<|im_start|>user" in text and "<|im_start|>assistant" in text) or ("Q:" in text and "A:" in text):
+        return True
+    return False
 
 def save_curriculum(data, level):
     os.makedirs("data", exist_ok=True)

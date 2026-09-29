@@ -13,52 +13,66 @@ class MeghaDataset(Dataset):
         self.tokenizer = tokenizer
         
         vocab = tokenizer.tokenizer.get_vocab()
+        pad_id = vocab.get("[PAD]", 1)
         eos_id = vocab.get("<|endoftext|>", 0)
         
-        all_x_tokens = []
-        all_y_tokens = []
+        self.samples_x = []
+        self.samples_y = []
         
         for text in all_texts:
-            if not text or "Q:" not in text or "A:" not in text:
+            if not text:
                 continue
-            parts = text.split("A:", 1)
-            prompt_str = parts[0] + "A:"
-            answer_str = parts[1]
+                
+            prompt_str = ""
+            answer_str = ""
             
+            # Format 1: ChatML format
+            if "<|im_start|>user" in text and "<|im_start|>assistant" in text:
+                parts = text.split("<|im_start|>assistant", 1)
+                prompt_str = parts[0] + "<|im_start|>assistant\n"
+                answer_str = parts[1].replace("<|im_end|>", "").strip() + "<|im_end|>"
+            # Format 2: Standard Q: ... A: ... format
+            elif "Q:" in text and "A:" in text:
+                parts = text.split("A:", 1)
+                prompt_str = "<|im_start|>user\n" + parts[0].replace("Q:", "").strip() + "<|im_end|>\n<|im_start|>assistant\n"
+                answer_str = parts[1].strip() + "<|im_end|>"
+            else:
+                continue
+                
             prompt_ids = self.tokenizer.encode(prompt_str)
-            answer_ids = self.tokenizer.encode(answer_str)
-            if not answer_ids:
+            ans_ids = self.tokenizer.encode(answer_str)
+            if not ans_ids:
                 continue
-            answer_ids.append(eos_id)
+            ans_ids.append(eos_id)
             
-            # Input: prompt + answer
-            x_seq = prompt_ids + answer_ids
-            # Target: -100 for prompt tokens (no loss gradient), answer_ids for answer tokens
-            y_seq = [-100] * len(prompt_ids) + answer_ids
+            x_raw = prompt_ids + ans_ids
+            y_raw = [-100] * len(prompt_ids) + ans_ids
             
-            all_x_tokens.extend(x_seq)
-            all_y_tokens.extend(y_seq)
+            # Truncate to max_seq_len if too long
+            if len(x_raw) > self.config.max_seq_len:
+                x_raw = x_raw[:self.config.max_seq_len]
+                y_raw = y_raw[:self.config.max_seq_len]
+            else:
+                # Pad to max_seq_len
+                pad_len = self.config.max_seq_len - len(x_raw)
+                x_raw = x_raw + [pad_id] * pad_len
+                y_raw = y_raw + [-100] * pad_len
+                
+            self.samples_x.append(torch.tensor(x_raw, dtype=torch.long))
+            self.samples_y.append(torch.tensor(y_raw, dtype=torch.long))
             
-        # Pad with EOS / -100 if sequence is short
-        min_len = self.config.max_seq_len + 1
-        while len(all_x_tokens) < min_len:
-            all_x_tokens.extend([eos_id] * 20)
-            all_y_tokens.extend([-100] * 20)
+        if not self.samples_x:
+            # Fallback dummy sample
+            dummy_x = torch.zeros(self.config.max_seq_len, dtype=torch.long)
+            dummy_y = torch.full((self.config.max_seq_len,), -100, dtype=torch.long)
+            self.samples_x = [dummy_x]
+            self.samples_y = [dummy_y]
             
-        self.x_data = torch.tensor(all_x_tokens, dtype=torch.long)
-        self.y_data = torch.tensor(all_y_tokens, dtype=torch.long)
-        
-        self.stride = max(1, self.config.max_seq_len // 2)
-        
     def __len__(self):
-        return max(1, (len(self.x_data) - self.config.max_seq_len - 1) // self.stride)
+        return len(self.samples_x)
         
     def __getitem__(self, idx):
-        start_idx = idx * self.stride
-        x = self.x_data[start_idx : start_idx + self.config.max_seq_len]
-        # Shift target by 1 token for standard next-token prediction
-        y = self.y_data[start_idx + 1 : start_idx + self.config.max_seq_len + 1]
-        return x, y
+        return self.samples_x[idx], self.samples_y[idx]
 
 
 def load_texts_from_file(data_path: str) -> list:
