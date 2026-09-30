@@ -75,10 +75,10 @@ class MeghaModel(nn.Module):
         self.norm_f = RMSNorm(config.d_model)
         self.lm_head = nn.Linear(config.d_model, config.vocab_size, bias=False)
         
-        # Weight tying
-        self.token_emb.weight = self.lm_head.weight
-        
         self.apply(self._init_weights)
+        
+        # Weight tying (ensure tied after init)
+        self.token_emb.weight = self.lm_head.weight
         
     def _init_weights(self, module):
         if isinstance(module, nn.Linear):

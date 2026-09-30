@@ -127,8 +127,8 @@ def generate_curriculum_real(level: int):
     base_prompt = LEVEL_PROMPTS.get(level, LEVEL_PROMPTS[0])
     
     all_data = []
-    target_examples = 2000   # 2,000 Q&A pairs per level = 30,000 total across 15 levels (~1.5M tokens)
-    max_batches = 60
+    target_examples = 500   # 500 Q&A pairs per level = 7,500 total ChatML dataset pairs (~500k tokens)
+    max_batches = 16
     
     print(f"Teacher is generating {target_examples} ChatML examples for Level {level} (in batches)...")
     
@@ -146,7 +146,7 @@ def generate_curriculum_real(level: int):
         batch_count += 1
         sub_seed = sub_seeds[(batch_count - 1) % len(sub_seeds)]
         
-        dynamic_prompt = f"{base_prompt}\n\nBatch {batch_count} instructions: {sub_seed}\nGenerate 35 unique Q&A examples. Output format MUST be:\nQ: <question>\nA: <answer>\n\nFormat all examples line-by-line as above."
+        dynamic_prompt = f"{base_prompt}\n\nBatch {batch_count} instructions: {sub_seed}\nGenerate 40 unique Q&A examples. Output format MUST be:\nQ: <question>\nA: <answer>\n\nFormat all examples line-by-line as above."
         
         messages = [
             {"role": "system", "content": "You are an expert AI teacher generating curriculum dataset examples."},
