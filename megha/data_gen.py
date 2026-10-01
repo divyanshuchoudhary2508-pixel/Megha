@@ -8,109 +8,138 @@ from transformers import AutoModelForCausalLM, AutoTokenizer
 LEVEL_PROMPTS = {
     0: """You are an expert AI teacher generating curriculum data for a smaller language model.
 Topic: Level 0 - Basic English Grammar and Vocabulary.
-Generate 50 simple Q&A examples covering basic sentence structure, nouns, verbs, and pronouns.
-Format each example STRICTLY as: "Q: <simple question>\nA: <simple answer>".
-Format the output STRICTLY as a JSON array of objects, each with a "text" field.
-Example: [{"text": "Q: Is the cat sleeping?\nA: Yes, the cat is sleeping on the bed."}]
-Output nothing but the JSON array. Do not include markdown blocks.""",
+Generate simple Q&A examples covering basic sentence structure, nouns, verbs, and pronouns.
+Output format is ONLY plain-text Q&A pairs, one per block:
+Q: <simple question>
+A: <simple answer>
+
+Do NOT output JSON. Do NOT use markdown. Each Q must be on its own line, each A on the next line.""",
     
     1: """You are an expert AI teacher generating curriculum data for a smaller language model.
 Topic: Level 1 - General Knowledge & Basic Reasoning.
-Generate 50 Q&A examples covering numbers, comparison, time, input/output, and basic cause-effect reasoning.
-Format each example STRICTLY as: "Q: <question>\nA: <clear answer>".
-Format the output STRICTLY as a JSON array of objects, with each object having a "text" field.
-Output nothing but the JSON array. Do not include markdown blocks.""",
+Generate Q&A examples covering numbers, comparison, time, input/output, and basic cause-effect reasoning.
+Output format is ONLY plain-text Q&A pairs:
+Q: <question>
+A: <clear answer>
+
+Do NOT output JSON. Do NOT use markdown. One Q per line, A on the next line.""",
 
     2: """You are an expert AI teacher generating curriculum data for a smaller language model.
 Topic: Level 2 - Computer Fundamentals.
-Generate 50 Q&A examples covering CPU, RAM, Storage (HDD vs SSD), Operating Systems (kernel, processes), and basic computing.
-Format each example STRICTLY as: "Q: <question>\nA: <clear factual answer>".
-Format the output STRICTLY as a JSON array of objects, with each object having a "text" field.
-Output nothing but the JSON array. Do not include markdown blocks.""",
+Generate Q&A examples covering CPU, RAM, Storage (HDD vs SSD), Operating Systems (kernel, processes), and basic computing.
+Output format is ONLY plain-text Q&A pairs:
+Q: <question>
+A: <clear factual answer>
+
+Do NOT output JSON. Do NOT use markdown. One Q per line, A on the next line.""",
 
     3: """You are an expert AI teacher generating curriculum data for a smaller language model.
 Topic: Level 3 - Linux Operating System.
-Generate 50 Q&A examples covering Linux commands (chmod, chown, ls, grep, ps, systemctl), filesystem (/etc, /var), and file permissions.
-Format each example STRICTLY as: "Q: <question>\nA: <clear factual answer>".
-Format the output STRICTLY as a JSON array of objects, with each object having a "text" field.
-Output nothing but the JSON array. Do not include markdown blocks.""",
+Generate Q&A examples covering Linux commands (chmod, chown, ls, grep, ps, systemctl), filesystem (/etc, /var), and file permissions.
+Output format is ONLY plain-text Q&A pairs:
+Q: <question>
+A: <clear factual answer>
+
+Do NOT output JSON. Do NOT use markdown. One Q per line, A on the next line.""",
 
     4: """You are an expert AI teacher generating curriculum data for a smaller language model.
 Topic: Level 4 - Networking.
 Generate Q&A examples covering TCP/IP, OSI model layers, DNS, CIDR subnetting, HTTP status codes (200, 404, 502), and common ports (22, 80, 443).
-Format each example STRICTLY as: "Q: <question>\nA: <clear factual answer>".
-Format the output STRICTLY as a JSON array of objects, with each object having a "text" field.
-Output nothing but the JSON array. Do not include markdown blocks.""",
+Output format is ONLY plain-text Q&A pairs:
+Q: <question>
+A: <clear factual answer>
+
+Do NOT output JSON. Do NOT use markdown. One Q per line, A on the next line.""",
 
     5: """You are an expert AI teacher generating curriculum data for a smaller language model.
 Topic: Level 5 - Cloud Computing Fundamentals.
 Generate Q&A examples covering virtualization, Cloud models (IaaS, PaaS, SaaS), deployment models (public, private, hybrid), and high availability.
-Format each example STRICTLY as: "Q: <question>\nA: <clear factual answer>".
-Format the output STRICTLY as a JSON array of objects, with each object having a "text" field.
-Output nothing but the JSON array. Do not include markdown blocks.""",
+Output format is ONLY plain-text Q&A pairs:
+Q: <question>
+A: <clear factual answer>
+
+Do NOT output JSON. Do NOT use markdown. One Q per line, A on the next line.""",
 
     6: """You are an expert AI teacher generating curriculum data for a smaller language model.
 Topic: Level 6 - AWS Core.
 Generate Q&A examples covering Amazon EC2, S3 bucket storage, IAM roles and policies, VPC, and RDS databases.
-Format each example STRICTLY as: "Q: <question>\nA: <clear factual answer>".
-Format the output STRICTLY as a JSON array of objects, with each object having a "text" field.
-Output nothing but the JSON array. Do not include markdown blocks.""",
+Output format is ONLY plain-text Q&A pairs:
+Q: <question>
+A: <clear factual answer>
+
+Do NOT output JSON. Do NOT use markdown. One Q per line, A on the next line.""",
 
     7: """You are an expert AI teacher generating curriculum data for a smaller language model.
 Topic: Level 7 - Docker & Containers.
 Generate Q&A examples covering Docker containers, images, Dockerfile instructions (FROM, RUN, CMD, COPY), docker build, docker run, and volumes.
-Format each example STRICTLY as: "Q: <question>\nA: <clear factual answer>".
-Format the output STRICTLY as a JSON array of objects, with each object having a "text" field.
-Output nothing but the JSON array. Do not include markdown blocks.""",
+Output format is ONLY plain-text Q&A pairs:
+Q: <question>
+A: <clear factual answer>
+
+Do NOT output JSON. Do NOT use markdown. One Q per line, A on the next line.""",
 
     8: """You are an expert AI teacher generating curriculum data for a smaller language model.
 Topic: Level 8 - Kubernetes.
 Generate Q&A examples covering K8s pods, deployments, services (ClusterIP, NodePort), Ingress, and replica sets.
-Format each example STRICTLY as: "Q: <question>\nA: <clear factual answer>".
-Format the output STRICTLY as a JSON array of objects, with each object having a "text" field.
-Output nothing but the JSON array. Do not include markdown blocks.""",
+Output format is ONLY plain-text Q&A pairs:
+Q: <question>
+A: <clear factual answer>
+
+Do NOT output JSON. Do NOT use markdown. One Q per line, A on the next line.""",
 
     9: """You are an expert AI teacher generating curriculum data for a smaller language model.
 Topic: Level 9 - DevOps & CI/CD.
 Generate Q&A examples covering Git commands, CI/CD pipelines, and Infrastructure as Code (Terraform).
-Format each example STRICTLY as: "Q: <question>\nA: <clear factual answer>".
-Format the output STRICTLY as a JSON array of objects, with each object having a "text" field.
-Output nothing but the JSON array. Do not include markdown blocks.""",
+Output format is ONLY plain-text Q&A pairs:
+Q: <question>
+A: <clear factual answer>
+
+Do NOT output JSON. Do NOT use markdown. One Q per line, A on the next line.""",
 
     10: """You are an expert AI teacher generating curriculum data for a smaller language model.
 Topic: Level 10 - Cloud Security.
 Generate Q&A examples covering authentication, IAM policies, why public S3 buckets are dangerous, Zero Trust, and KMS encryption keys.
-Format each example STRICTLY as: "Q: <question>\nA: <clear factual answer>".
-Format the output STRICTLY as a JSON array of objects, with each object having a "text" field.
-Output nothing but the JSON array. Do not include markdown blocks.""",
+Output format is ONLY plain-text Q&A pairs:
+Q: <question>
+A: <clear factual answer>
+
+Do NOT output JSON. Do NOT use markdown. One Q per line, A on the next line.""",
 
     11: """You are an expert AI teacher generating curriculum data for a smaller language model.
 Topic: Level 11 - Cloud Troubleshooting.
 Generate troubleshooting Q&A examples: symptoms, diagnosis, and fix (e.g. 502 Bad Gateway cause and fix, EC2 unreachable cause and fix, S3 AccessDenied).
-Format each example STRICTLY as: "Q: <troubleshooting question>\nA: <clear diagnostic and resolution steps>".
-Format the output STRICTLY as a JSON array of objects, with each object having a "text" field.
-Output nothing but the JSON array. Do not include markdown blocks.""",
+Output format is ONLY plain-text Q&A pairs:
+Q: <troubleshooting question>
+A: <clear diagnostic and resolution steps>
+
+Do NOT output JSON. Do NOT use markdown. One Q per line, A on the next line.""",
 
     12: """You are an expert AI teacher generating curriculum data for a smaller language model.
 Topic: Level 12 - Cloud Architecture.
 Generate Q&A examples covering Highly Available designs, Load Balancer + Auto Scaling, and Serverless API architectures.
-Format each example STRICTLY as: "Q: <architectural question>\nA: <clear architectural design explanation>".
-Format the output STRICTLY as a JSON array of objects, with each object having a "text" field.
-Output nothing but the JSON array. Do not include markdown blocks.""",
+Output format is ONLY plain-text Q&A pairs:
+Q: <architectural question>
+A: <clear architectural design explanation>
+
+Do NOT output JSON. Do NOT use markdown. One Q per line, A on the next line.""",
 
     13: """You are an expert AI teacher generating curriculum data for a smaller language model.
 Topic: Level 13 - Cloud Reasoning.
 Generate scenario-based Q&A examples analyzing traffic spikes, failover strategies, and database bottlenecks.
-Format each example STRICTLY as: "Q: <scenario question>\nA: <logical step-by-step reasoning and solution>".
-Format the output STRICTLY as a JSON array of objects, with each object having a "text" field.
-Output nothing but the JSON array. Do not include markdown blocks.""",
+Output format is ONLY plain-text Q&A pairs:
+Q: <scenario question>
+A: <logical step-by-step reasoning and solution>
+
+Do NOT output JSON. Do NOT use markdown. One Q per line, A on the next line.""",
 
     14: """You are an expert AI teacher generating curriculum data for a smaller language model.
 Topic: Level 14 - CloudOps Multi-step Problem Solving.
 Generate advanced Q&A examples showing step-by-step CloudOps problem resolution for Linux, AWS, Docker, and Kubernetes incidents.
-Format each example STRICTLY as: "Q: <incident question>\nA: Identify symptoms -> Collect evidence -> Form hypothesis -> Test and Fix -> Verify.".
-Format the output STRICTLY as a JSON array of objects, with each object having a "text" field.
-Output nothing but the JSON array. Do not include markdown blocks."""
+Output format is ONLY plain-text Q&A pairs:
+Q: <incident question>
+A: Identify symptoms -> Collect evidence -> Form hypothesis -> Test and Fix -> Verify.
+
+Do NOT output JSON. Do NOT use markdown. One Q per line, A on the next line."""
 }
 
 def generate_curriculum_real(level: int):
@@ -205,14 +234,37 @@ def generate_curriculum_dummy(level: int):
     return simulated_response
 
 def is_good_example(text: str) -> bool:
-    """Filter out low-quality Q&A examples before training."""
+    """Filter out low-quality or JSON-contaminated Q&A examples before training."""
     if not text or len(text.strip()) < 20:
         return False
     if len(text) > 2000:
         return False
-    if ("<|im_start|>user" in text and "<|im_start|>assistant" in text) or ("Q:" in text and "A:" in text):
-        return True
-    return False
+    # Must have proper ChatML structure
+    if not ("<|im_start|>user" in text and "<|im_start|>assistant" in text):
+        return False
+    # Extract the assistant answer part
+    try:
+        after_asst = text.split("<|im_start|>assistant\n", 1)[1]
+        # Strip trailing im_end if present
+        if "<|im_end|>" in after_asst:
+            after_asst = after_asst.split("<|im_end|>")[0]
+    except IndexError:
+        return False
+    # Reject if answer is too short
+    if len(after_asst.strip()) < 10:
+        return False
+    # Reject if answer contains JSON artifacts
+    json_junk = ['"text":', '"},', '[{"', '},\n    {', '"text": "']
+    for junk in json_junk:
+        if junk in after_asst:
+            return False
+    # Reject if answer contains HTML tags
+    if '</a>' in after_asst or '<a ' in after_asst:
+        return False
+    # Reject if answer still has escaped newlines from JSON (\\n pattern)
+    if '\\\\n' in after_asst or '\\n' in repr(after_asst).replace('\\n', ''):
+        pass  # allow normal newlines
+    return True
 
 def save_curriculum(data, level):
     os.makedirs("data", exist_ok=True)
