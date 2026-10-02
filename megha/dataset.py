@@ -44,20 +44,35 @@ class MeghaDataset(Dataset):
             if not ans_ids:
                 continue
             ans_ids.append(eos_id)
-            
-            x_raw = prompt_ids + ans_ids
-            y_raw = [-100] * len(prompt_ids) + ans_ids
-            
-            # Truncate to max_seq_len if too long
+
+            # ── GPT-style next-token prediction ──────────────────────────
+            # Full sequence: [p0, p1, ..., pN, a0, a1, ..., aM, eos]
+            # x (input)  = full_sequence[:-1]  → all tokens except last
+            # y (target) = full_sequence[1:]   → all tokens except first (shifted left by 1)
+            # Prompt positions in y are masked to -100 so loss is only on answer tokens.
+            #
+            # Boundary:
+            #   x[-1] of prompt portion = pN (last prompt token, e.g. '\n' after 'assistant')
+            #   y at that position      = a0 (FIRST answer token) ← model MUST learn this!
+            full_seq = prompt_ids + ans_ids        # length L
+            # x: drop last token so model predicts it
+            x_raw = full_seq[:-1]                  # length L-1
+            # y: shifted left — y[i] = full_seq[i+1]
+            y_shifted = full_seq[1:]               # length L-1
+            # Mask all prompt positions except the last one (which predicts first answer token)
+            # prompt boundary in x_raw: indices 0..len(prompt_ids)-2 are pure prompt
+            # index len(prompt_ids)-1 is the last prompt token → y = first answer token (unmask!)
+            y_raw = [-100] * (len(prompt_ids) - 1) + y_shifted[len(prompt_ids) - 1:]
+
+            # Truncate to max_seq_len
             if len(x_raw) > self.config.max_seq_len:
                 x_raw = x_raw[:self.config.max_seq_len]
                 y_raw = y_raw[:self.config.max_seq_len]
             else:
-                # Pad to max_seq_len
                 pad_len = self.config.max_seq_len - len(x_raw)
                 x_raw = x_raw + [pad_id] * pad_len
                 y_raw = y_raw + [-100] * pad_len
-                
+
             self.samples_x.append(torch.tensor(x_raw, dtype=torch.long))
             self.samples_y.append(torch.tensor(y_raw, dtype=torch.long))
             
